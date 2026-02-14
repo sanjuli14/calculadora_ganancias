@@ -46,6 +46,21 @@ class DatabaseService {
     await _salesBox.add(sale);
   }
 
+  Future<void> deleteSale(dynamic key) async {
+    final sale = _salesBox.get(key);
+    if (sale != null) {
+      // Find the product and restore stock
+      for (var product in _productsBox.values) {
+        if (product.name == sale.productName) {
+          product.stock += sale.quantity;
+          await product.save();
+          break;
+        }
+      }
+    }
+    await _salesBox.delete(key);
+  }
+
   // Get sales between dates
   List<Sale> getSalesBetween(DateTime start, DateTime end) {
     return _salesBox.values.where((sale) {

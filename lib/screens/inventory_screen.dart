@@ -113,7 +113,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Producto'),
-        content: Text('¿Estás seguro de que quieres eliminar "${product.name}"?'),
+        content: Text('¿Estás seguro de que quieres eliminar "CUP ${product.name}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

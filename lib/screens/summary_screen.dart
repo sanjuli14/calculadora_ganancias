@@ -93,11 +93,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       rows: [
                         DataRow(cells: [
                           const DataCell(Text('Total Ventas')),
-                          DataCell(Text('\$${customSummary['totalSales']!.toStringAsFixed(2)}')),
+                          DataCell(Text('CUP ${customSummary['totalSales']!.toStringAsFixed(2)}')),
                         ]),
                         DataRow(cells: [
                           const DataCell(Text('Total Ganancias')),
-                          DataCell(Text('\$${customSummary['totalProfit']!.toStringAsFixed(2)}')),
+                          DataCell(Text('CUP ${customSummary['totalProfit']!.toStringAsFixed(2)}')),
                         ]),
                         DataRow(cells: [
                           const DataCell(Text('Número de Ventas')),

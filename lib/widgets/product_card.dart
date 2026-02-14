@@ -141,7 +141,7 @@ class ProductCard extends StatelessWidget {
                     children: [
                       const Text('Ganancia', style: TextStyle(fontSize: 12, color: Colors.grey)),
                       Text(
-                        '\$${profit.toStringAsFixed(2)}',
+                        'CUP ${profit.toStringAsFixed(2)}',
                         style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16),
                       ),
                       Text(
@@ -165,7 +165,7 @@ class ProductCard extends StatelessWidget {
       children: [
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         Text(
-          '\$${price.toStringAsFixed(2)}',
+          'CUP ${price.toStringAsFixed(2)}',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ],
