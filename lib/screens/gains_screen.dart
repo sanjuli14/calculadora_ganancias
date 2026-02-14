@@ -43,7 +43,7 @@ class GainsScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '\$${totalProfit.toStringAsFixed(2)}',
+                        'CUP ${totalProfit.toStringAsFixed(2)}',
                         style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
                       ),
                       const Text(
@@ -56,7 +56,7 @@ class GainsScreen extends StatelessWidget {
                         children: [
                           _buildHeaderStat('Ventas', '$totalSales'),
                           Container(width: 1, height: 40, color: Colors.white24),
-                          _buildHeaderStat('Ingresos', '\$${totalRevenue.toStringAsFixed(2)}'),
+                          _buildHeaderStat('Ingresos', 'CUP ${totalRevenue.toStringAsFixed(2)}'),
                         ],
                       ),
                     ],
@@ -77,20 +77,56 @@ class GainsScreen extends StatelessWidget {
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          leading: CircleAvatar(
-                            backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                            child: Icon(Icons.shopping_bag, color: Theme.of(context).colorScheme.onSecondaryContainer),
-                          ),
+                          // leading: CircleAvatar(
+                          //   backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                          //   child: Icon(Icons.shopping_bag, color: Theme.of(context).colorScheme.onSecondaryContainer),
+                          // ),
                           title: Text(sale.productName, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text('$dateStr\nCantidad: ${sale.quantity}'),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('+\$${sale.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text(
-                                'Ganancia: \$${sale.profit.toStringAsFixed(2)}',
-                                style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('+CUP ${sale.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Text(
+                                    'Ganancia: CUP ${sale.profit.toStringAsFixed(2)}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  final key = box.keyAt(sales.length - 1 - index);
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Confirmar eliminación'),
+                                      content: const Text('¿Estás seguro de que quieres eliminar esta venta?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(false),
+                                          child: const Text('Cancelar'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(true),
+                                          child: const Text('Eliminar'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed == true) {
+                                    await databaseService.deleteSale(key);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Venta eliminada')),
+                                      );
+                                    }
+                                  }
+                                },
                               ),
                             ],
                           ),

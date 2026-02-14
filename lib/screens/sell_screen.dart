@@ -101,7 +101,7 @@ class _SellScreenState extends State<SellScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text('Precio Unitario'),
-                              Text('\$${_selectedProduct!.sellPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text('CUP ${_selectedProduct!.sellPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                             ],
                           ),
                           const Divider(),
@@ -118,8 +118,8 @@ class _SellScreenState extends State<SellScreen> {
                                      children: [
                                        const Text('Total a Pagar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                        Text(
-                                         '\$${total.toStringAsFixed(2)}',
-                                         style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+                                         'CUP ${total.toStringAsFixed(2)}',
+                                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                                        ),
                                      ],
                                    ),
@@ -129,7 +129,7 @@ class _SellScreenState extends State<SellScreen> {
                                      children: [
                                        const Text('Ganancia estimada', style: TextStyle(fontSize: 12, color: Colors.grey)),
                                        Text(
-                                         '+\$${profit.toStringAsFixed(2)}',
+                                         '+CUP ${profit.toStringAsFixed(2)}',
                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
                                        ),
                                      ],
