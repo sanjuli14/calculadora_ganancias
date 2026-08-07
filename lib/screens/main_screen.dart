@@ -1,54 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../notifiers/nav_notifier.dart';
 import '../services/database_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
+import 'dashboard_screen.dart';
 import 'inventory_screen.dart';
 import 'sell_screen.dart';
 import 'gains_screen.dart';
-import 'summary_screen.dart';
+import 'cashbox_screen.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider<MainNavNotifier>(
+      create: (_) => MainNavNotifier(),
+      child: const _MainScreenBody(),
+    );
+  }
 }
 
-class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
+class _MainScreenBody extends StatelessWidget {
+  const _MainScreenBody();
 
-  static const List<Widget> _widgetOptions = <Widget>[
+  static const List<Widget> _screens = [
+    DashboardScreen(),
     InventoryScreen(),
     SellScreen(),
     GainsScreen(),
-    SummaryScreen(),
+    CashBoxScreen(),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
+    final nav = Provider.of<MainNavNotifier>(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calculadora de Ganancias'),
+        title: const AppLogo(fontSize: 20),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) async {
               final db = Provider.of<DatabaseService>(context, listen: false);
               if (value == 'export') {
                 await db.exportData();
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copia de seguridad lista para compartir')));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Copia de seguridad lista para compartir')),
+                  );
+                }
               } else if (value == 'import') {
                 try {
                   await db.importData();
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Datos restaurados correctamente')));
-                  setState(() {}); // Refresh UI
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Datos restaurados correctamente')),
+                    );
+                  }
                 } catch (e) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al importar: $e')));
-               }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error al importar: $e')),
+                    );
+                  }
+                }
               }
             },
             itemBuilder: (BuildContext context) {
@@ -56,13 +73,13 @@ class _MainScreenState extends State<MainScreen> {
                 const PopupMenuItem(
                   value: 'export',
                   child: Row(
-                    children: [Icon(Icons.upload_file, color: Colors.blue), SizedBox(width: 8), Text('Exportar Copia')],
+                    children: [Icon(Icons.upload_file, color: AppColors.navy), SizedBox(width: 8), Text('Exportar Copia')],
                   ),
                 ),
                 const PopupMenuItem(
                   value: 'import',
                   child: Row(
-                    children: [Icon(Icons.download, color: Colors.green), SizedBox(width: 8), Text('Importar Copia')],
+                    children: [Icon(Icons.download, color: AppColors.emerald), SizedBox(width: 8), Text('Importar Copia')],
                   ),
                 ),
               ];
@@ -70,32 +87,40 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
+      body: IndexedStack(
+        index: nav.index,
+        children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: nav.index,
+        onDestinationSelected: (index) => nav.goTo(index),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
             label: 'Inventario',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.point_of_sale),
+          NavigationDestination(
+            icon: Icon(Icons.add_shopping_cart_outlined),
+            selectedIcon: Icon(Icons.add_shopping_cart),
             label: 'Vender',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.attach_money),
+          NavigationDestination(
+            icon: Icon(Icons.trending_up_outlined),
+            selectedIcon: Icon(Icons.trending_up),
             label: 'Ganancias',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: 'Resumen',
+          NavigationDestination(
+            icon: Icon(Icons.payments_outlined),
+            selectedIcon: Icon(Icons.payments),
+            label: 'Caja',
           ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.black54,
-        onTap: _onItemTapped,
       ),
     );
   }
