@@ -19,13 +19,26 @@ class Sale extends HiveObject {
   @HiveField(4)
   DateTime date;
 
+  @HiveField(5)
+  String paymentMethod;
+
+  @HiveField(6)
+  double? commissionAmount;
+
   Sale({
     required this.productName,
     required this.unitBuyPrice,
     required this.unitSellPrice,
     required this.quantity,
     required this.date,
+    this.paymentMethod = 'efectivo',
+    this.commissionAmount,
   });
+
+  double get total => unitSellPrice * quantity;
+  double get profit => (unitSellPrice - unitBuyPrice) * quantity;
+  double get commission => commissionAmount ?? 0;
+  double get netReceived => total - commission;
 
   Map<String, dynamic> toJson() {
     return {
@@ -34,6 +47,8 @@ class Sale extends HiveObject {
       'unitSellPrice': unitSellPrice,
       'quantity': quantity,
       'date': date.toIso8601String(),
+      'paymentMethod': paymentMethod,
+      'commissionAmount': commissionAmount,
     };
   }
 
@@ -44,9 +59,8 @@ class Sale extends HiveObject {
       unitSellPrice: json['unitSellPrice'],
       quantity: json['quantity'],
       date: DateTime.parse(json['date']),
+      paymentMethod: json['paymentMethod'] as String? ?? 'efectivo',
+      commissionAmount: (json['commissionAmount'] as num?)?.toDouble(),
     );
   }
-
-  double get total => unitSellPrice * quantity;
-  double get profit => (unitSellPrice - unitBuyPrice) * quantity;
 }
