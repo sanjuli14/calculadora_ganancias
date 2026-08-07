@@ -1,5 +1,5 @@
 name: calcular_ganancias
-description: "A new Flutter project."
+description: "Cuentas Claras - Inventario, ventas y ganancias claras."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -45,6 +45,8 @@ dependencies:
   hive_flutter: ^1.1.0
 
   # Utilities
+  crypto: ^3.0.3
+  http: ^1.2.0
   intl: ^0.18.1
   path_provider: ^2.1.1
   share_plus: ^7.1.0
@@ -66,10 +68,10 @@ flutter_icons:
   image_path: "assets/icon/icon.png"
 
 flutter_native_splash:
-  color: "#fff2e1"
+  color: "#F4F7FC"
   image: "assets/icon/icon.png"
   android_12:
-    color: "#fff2e1"
+    color: "#F4F7FC"
     image: "assets/icon/icon.png"
 
 # For information on the generic Dart part of this file, see the
