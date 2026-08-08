@@ -17,6 +17,19 @@ class GainsScreen extends StatefulWidget {
 
 class _GainsScreenState extends State<GainsScreen> {
   String _period = 'all';
+  final _exchangeRateController = TextEditingController();
+  bool _showUsd = false;
+
+  @override
+  void dispose() {
+    _exchangeRateController.dispose();
+    super.dispose();
+  }
+
+  double? get _usdRate {
+    final v = double.tryParse(_exchangeRateController.text);
+    return (v == null || v <= 0) ? null : v;
+  }
 
   List<Sale> _filterSales(DatabaseService db, List<Sale> sales) {
     switch (_period) {
@@ -151,6 +164,16 @@ class _GainsScreenState extends State<GainsScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        _DollarCard(
+                          rate: _usdRate,
+                          show: _showUsd,
+                          totalRevenue: totalRevenue,
+                          totalProfit: totalProfit,
+                          controller: _exchangeRateController,
+                          onChanged: () => setState(() {}),
+                          onToggle: (v) => setState(() => _showUsd = v),
+                        ),
                         const SizedBox(height: 20),
                         Text(
                           sales.isEmpty
@@ -222,6 +245,111 @@ class _GainsScreenState extends State<GainsScreen> {
         );
       }
     }
+  }
+}
+
+class _DollarCard extends StatelessWidget {
+  final double? rate;
+  final bool show;
+  final double totalRevenue;
+  final double totalProfit;
+  final TextEditingController controller;
+  final VoidCallback onChanged;
+  final ValueChanged<bool> onToggle;
+
+  const _DollarCard({
+    required this.rate,
+    required this.show,
+    required this.totalRevenue,
+    required this.totalProfit,
+    required this.controller,
+    required this.onChanged,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRate = show && rate != null;
+    final usdRevenue = hasRate ? totalRevenue / rate! : 0.0;
+    final usdProfit = hasRate ? totalProfit / rate! : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.attach_money_outlined, color: AppColors.navy, size: 20),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Equivalente en USD',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Switch(
+                value: show,
+                activeThumbColor: AppColors.emerald,
+                onChanged: onToggle,
+              ),
+            ],
+          ),
+          if (show) ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              onChanged: (_) => onChanged(),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Tipo de cambio (1 USD en CUP)',
+                hintText: 'Ej: 120',
+                prefixIcon: Icon(Icons.currency_exchange),
+              ),
+            ),
+            if (hasRate) ...[
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total vendido', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  Text(
+                    '\$${usdRevenue.toStringAsFixed(2)}',
+                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Ganancias', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  Text(
+                    '\$${usdProfit.toStringAsFixed(2)}',
+                    style: const TextStyle(color: AppColors.emerald, fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -319,77 +447,89 @@ class _SaleTile extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.emeraldSoft,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.receipt_long_outlined, color: AppColors.emerald, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  sale.productName,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.emeraldSoft,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '$dateStr • ${sale.quantity} u × ${formatMoney(sale.unitSellPrice)}',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Row(
+                child: const Icon(Icons.receipt_long_outlined, color: AppColors.emerald, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.navySoft,
-                        borderRadius: BorderRadius.circular(6),
+                    Text(
+                      sale.productName,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(PaymentMethod.icon(sale.paymentMethod), size: 11, color: AppColors.navy),
-                          const SizedBox(width: 3),
-                          Text(
-                            PaymentMethod.label(sale.paymentMethod),
-                            style: const TextStyle(
-                              color: AppColors.navy,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (sale.commission > 0) ...[
-                      const SizedBox(width: 6),
-                      Text(
-                        'comisión ${formatMoney(sale.commission)}',
-                        style: const TextStyle(color: AppColors.danger, fontSize: 11),
-                      ),
-                    ],
+                    const SizedBox(height: 2),
+                    Text(
+                      '$dateStr • ${sale.quantity} u × ${formatMoney(sale.unitSellPrice)}',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              IconButton(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+              ),
+            ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          const SizedBox(height: 10),
+          Row(
             children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.navySoft,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(PaymentMethod.icon(sale.paymentMethod), size: 11, color: AppColors.navy),
+                    const SizedBox(width: 3),
+                    Text(
+                      PaymentMethod.label(sale.paymentMethod),
+                      style: const TextStyle(
+                        color: AppColors.navy,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (sale.commission > 0) ...[
+                const SizedBox(width: 6),
+                Text(
+                  'comisión ${formatMoney(sale.commission)}',
+                  style: const TextStyle(color: AppColors.danger, fontSize: 11),
+                ),
+              ],
+              if (sale.paymentMethod == 'dolar' && sale.exchangeRate != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  'cambio ${formatMoney(sale.exchangeRate!)}',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                ),
+              ],
+              const Spacer(),
               Text(
                 '+${formatMoney(sale.total)}',
                 style: const TextStyle(
@@ -398,20 +538,21 @@ class _SaleTile extends StatelessWidget {
                   fontSize: 14,
                 ),
               ),
-              Text(
-                'ganancia ${formatMoney(sale.profit)}',
-                style: const TextStyle(
-                  color: AppColors.emerald,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
             ],
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              sale.paymentMethod == 'dolar' && sale.usdAmount > 0
+                  ? 'ganancia ${formatMoney(sale.profit)} • \$${sale.usdAmount.toStringAsFixed(2)} USD'
+                  : 'ganancia ${formatMoney(sale.profit)}',
+              style: const TextStyle(
+                color: AppColors.emerald,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),

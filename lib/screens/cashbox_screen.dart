@@ -93,7 +93,8 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
   }
 
   Future<void> _save(DatabaseService db) async {
-    final counts = Map<String, int>.from(_counts)..removeWhere((k, v) => v == 0);
+    final counts = Map<String, int>.from(_counts)
+      ..removeWhere((k, v) => v == 0);
     if (counts.isEmpty) {
       _showSnack('Ingresa al menos una cantidad');
       return;
@@ -102,7 +103,9 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
       date: DateTime.now(),
       denominations: counts,
       expectedAmount: _showExpected ? _expected : null,
-      note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      note: _noteController.text.trim().isEmpty
+          ? null
+          : _noteController.text.trim(),
     );
     await db.addCashCount(count);
     _reset();
@@ -140,10 +143,16 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                     ),
                     const Text(
                       'Cuenta el dinero por billetes',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    _TotalCard(total: _total, expected: _showExpected ? _expected : null),
+                    _TotalCard(
+                      total: _total,
+                      expected: _showExpected ? _expected : null,
+                    ),
                   ],
                 ),
               ),
@@ -169,17 +178,14 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                   crossAxisSpacing: 12,
                   childAspectRatio: 1.1,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final d = kBillDenominations[index];
-                    return _DenominationTile(
-                      denomination: d,
-                      count: _counts[d.label] ?? 0,
-                      onCountChanged: (v) => _setCount(d.label, v),
-                    );
-                  },
-                  childCount: kBillDenominations.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final d = kBillDenominations[index];
+                  return _DenominationTile(
+                    denomination: d,
+                    count: _counts[d.label] ?? 0,
+                    onCountChanged: (v) => _setCount(d.label, v),
+                  );
+                }, childCount: kBillDenominations.length),
               ),
             ),
             SliverToBoxAdapter(
@@ -197,7 +203,11 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.fact_check_outlined, color: AppColors.navy, size: 20),
+                                const Icon(
+                                  Icons.fact_check_outlined,
+                                  color: AppColors.navy,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 8),
                                 const Expanded(
                                   child: Text(
@@ -211,7 +221,8 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                                 Switch(
                                   value: _showExpected,
                                   activeThumbColor: AppColors.emerald,
-                                  onChanged: (v) => setState(() => _showExpected = v),
+                                  onChanged: (v) =>
+                                      setState(() => _showExpected = v),
                                 ),
                               ],
                             ),
@@ -219,7 +230,10 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                               const SizedBox(height: 8),
                               TextField(
                                 controller: _expectedController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 decoration: const InputDecoration(
                                   labelText: 'Monto esperado',
                                   prefixIcon: Icon(Icons.payments_outlined),
@@ -239,35 +253,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    const SectionHeader(
-                      title: 'Billetes',
-                      subtitle: 'Toca el número para ingresar manualmente',
-                    ),
-                    const SizedBox(height: 12),
                   ],
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.1,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final d = kBillDenominations[index];
-                    return _DenominationTile(
-                      denomination: d,
-                      count: _counts[d.label] ?? 0,
-                      onCountChanged: (v) => _setCount(d.label, v),
-                    );
-                  },
-                  childCount: kBillDenominations.length,
                 ),
               ),
             ),
@@ -306,7 +292,10 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                     IconButton(
                       tooltip: 'Eliminar todo',
                       onPressed: () => _confirmClearHistory(db),
-                      icon: const Icon(Icons.delete_sweep_outlined, color: AppColors.danger),
+                      icon: const Icon(
+                        Icons.delete_sweep_outlined,
+                        color: AppColors.danger,
+                      ),
                     ),
                   ],
                 ),
@@ -325,7 +314,11 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.account_balance_wallet_outlined, size: 56, color: AppColors.border),
+                            Icon(
+                              Icons.account_balance_wallet_outlined,
+                              size: 56,
+                              color: AppColors.border,
+                            ),
                             SizedBox(height: 12),
                             Text(
                               'Aún no hay cajas guardadas',
@@ -340,18 +333,15 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                 return SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final count = counts[counts.length - 1 - index];
-                        final key = box.keyAt(counts.length - 1 - index);
-                        return _HistoryTile(
-                          count: count,
-                          onDelete: () => _confirmDeleteHistory(db, key),
-                          onTap: () => _showDetail(count),
-                        );
-                      },
-                      childCount: counts.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final count = counts[counts.length - 1 - index];
+                      final key = box.keyAt(counts.length - 1 - index);
+                      return _HistoryTile(
+                        count: count,
+                        onDelete: () => _confirmDeleteHistory(db, key),
+                        onTap: () => _showDetail(count),
+                      );
+                    }, childCount: counts.length),
                   ),
                 );
               },
@@ -367,7 +357,9 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar caja'),
-        content: const Text('¿Quieres eliminar este registro de la caja contable?'),
+        content: const Text(
+          '¿Quieres eliminar este registro de la caja contable?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -375,7 +367,10 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: AppColors.danger),
+            ),
           ),
         ],
       ),
@@ -390,7 +385,9 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Limpiar historial'),
-        content: const Text('Se eliminarán todas las cajas guardadas. ¿Continuar?'),
+        content: const Text(
+          'Se eliminarán todas las cajas guardadas. ¿Continuar?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -398,7 +395,10 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar todo', style: TextStyle(color: AppColors.danger)),
+            child: const Text(
+              'Eliminar todo',
+              style: TextStyle(color: AppColors.danger),
+            ),
           ),
         ],
       ),
@@ -439,7 +439,10 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
               Center(
                 child: Text(
                   DateFormat('EEEE, d MMM yyyy HH:mm', 'es').format(count.date),
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
               ),
               if (count.note != null) ...[
@@ -447,7 +450,10 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                 Center(
                   child: Text(
                     count.note!,
-                    style: const TextStyle(color: AppColors.textPrimary, fontStyle: FontStyle.italic),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
               ],
@@ -470,7 +476,10 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                         Text('× ${e.value}'),
                         Text(
                           formatMoney(v * e.value),
-                          style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.navy),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy,
+                          ),
                         ),
                       ],
                     );
@@ -487,7 +496,11 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                   ),
                   Text(
                     formatMoney(count.total),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.emerald),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.emerald,
+                    ),
                   ),
                 ],
               ),
@@ -499,14 +512,19 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                     children: [
                       const Text(
                         'Diferencia vs esperado',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                       Text(
                         '${count.difference! >= 0 ? '+' : ''}${formatMoney(count.difference!)}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: count.difference! >= 0 ? AppColors.emerald : AppColors.danger,
+                          color: count.difference! >= 0
+                              ? AppColors.emerald
+                              : AppColors.danger,
                         ),
                       ),
                     ],
@@ -556,7 +574,11 @@ class _TotalCard extends StatelessWidget {
               SizedBox(width: 8),
               Text(
                 'Total contado',
-                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -584,7 +606,11 @@ class _TotalCard extends StatelessWidget {
                 diff.abs() < 0.005
                     ? '✔ Coincide con la caja esperada'
                     : '${diff > 0 ? 'Sobra' : 'Faltan'} ${formatMoney(diff.abs())}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
               ),
             ),
           ],
@@ -613,7 +639,11 @@ class _DenominationTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: count > 0 ? AppColors.emerald.withOpacity(0.6) : AppColors.border),
+        border: Border.all(
+          color: count > 0
+              ? AppColors.emerald.withOpacity(0.6)
+              : AppColors.border,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.navy.withOpacity(0.04),
@@ -631,7 +661,11 @@ class _DenominationTile extends StatelessWidget {
               if (denomination.isCoin)
                 const Icon(Icons.circle, color: AppColors.turquoise, size: 13)
               else
-                const Icon(Icons.rectangle_outlined, color: AppColors.navy, size: 13),
+                const Icon(
+                  Icons.rectangle_outlined,
+                  color: AppColors.navy,
+                  size: 13,
+                ),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
@@ -683,7 +717,9 @@ class _DenominationTile extends StatelessWidget {
           Text(
             subtotal == 0 ? '—' : formatMoneyCompact(subtotal),
             style: TextStyle(
-              color: subtotal == 0 ? AppColors.textSecondary : AppColors.emerald,
+              color: subtotal == 0
+                  ? AppColors.textSecondary
+                  : AppColors.emerald,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -785,7 +821,11 @@ class _HistoryTile extends StatelessWidget {
             color: AppColors.turquoiseSoft,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.turquoise, size: 20),
+          child: const Icon(
+            Icons.account_balance_wallet_outlined,
+            color: AppColors.turquoise,
+            size: 20,
+          ),
         ),
         title: Text(
           formatMoney(count.total),
@@ -810,12 +850,18 @@ class _HistoryTile extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: count.difference! >= 0 ? AppColors.emerald : AppColors.danger,
+                  color: count.difference! >= 0
+                      ? AppColors.emerald
+                      : AppColors.danger,
                 ),
               ),
             IconButton(
               onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+              icon: const Icon(
+                Icons.delete_outline,
+                color: AppColors.danger,
+                size: 20,
+              ),
             ),
           ],
         ),

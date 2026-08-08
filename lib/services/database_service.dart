@@ -3,6 +3,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:media_store_plus/media_store_plus.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import '../models/product.dart';
@@ -12,28 +14,85 @@ import '../models/debt.dart';
 import '../models/payment.dart';
 
 class DatabaseService {
+  // Versión del esquema de la base de datos.
+  // Aumenta este número cuando agregues/cambies campos de un modelo y deja
+  // la lógica de migración en _migrate(). Así las actualizaciones nunca
+  // pierden los datos del usuario.
+  static const int _schemaVersion = 1;
+
   late Box<Product> _productsBox;
   late Box<Sale> _salesBox;
   late Box<CashCount> _cashboxBox;
   late Box<Debt> _debtsBox;
+  late Box _metaBox;
+  Timer? _backupDebounce;
 
   Box<Product> get productsBox => _productsBox;
   Box<Sale> get salesBox => _salesBox;
   Box<CashCount> get cashboxBox => _cashboxBox;
   Box<Debt> get debtsBox => _debtsBox;
 
-  Future<void> init() async {
-    await Hive.initFlutter();
+  bool get onboardingSeen => _metaBox.get('onboarding_seen', defaultValue: false) as bool;
+
+  Future<void> markOnboardingSeen() async {
+    await _metaBox.put('onboarding_seen', true);
+  }
+
+  Future<void> init() async {    await Hive.initFlutter();
     Hive.registerAdapter(ProductAdapter());
     Hive.registerAdapter(SaleAdapter());
     Hive.registerAdapter(CashCountAdapter());
     Hive.registerAdapter(DebtAdapter());
     Hive.registerAdapter(PaymentAdapter());
 
-    _productsBox = await Hive.openBox<Product>('products');
-    _salesBox = await Hive.openBox<Sale>('sales');
-    _cashboxBox = await Hive.openBox<CashCount>('cashbox');
-    _debtsBox = await Hive.openBox<Debt>('debts');
+    // Abre la box de metadatos (versión de esquema) de forma segura.
+    try {
+      _metaBox = await Hive.openBox('meta');
+    } catch (_) {
+      await Hive.deleteBoxFromDisk('meta');
+      _metaBox = await Hive.openBox('meta');
+    }
+
+    // Apertura defensiva: si una box se corrompe (cierre forzoso, cambio
+    // radical), se borra y se vuelve a crear en lugar de crashear la app.
+    _productsBox = await _openBoxSafely<Product>('products');
+    _salesBox = await _openBoxSafely<Sale>('sales');
+    _cashboxBox = await _openBoxSafely<CashCount>('cashbox');
+    _debtsBox = await _openBoxSafely<Debt>('debts');
+
+    await _migrate();
+  }
+
+  Future<Box<T>> _openBoxSafely<T>(String boxName) async {
+    try {
+      return await Hive.openBox<T>(boxName);
+    } catch (e) {
+      // Box corrupta: la recreamos para que la app siga funcionando.
+      // El usuario puede recuperar sus datos con la copia de seguridad.
+      await Hive.deleteBoxFromDisk(boxName);
+      return await Hive.openBox<T>(boxName);
+    }
+  }
+
+  Future<void> _migrate() async {
+    final current = _metaBox.get('db_version', defaultValue: 1) as int;
+    if (current >= _schemaVersion) return;
+
+    // === Migraciones por versión ===
+    // Ejemplo de migración (descomenta y adapta cuando agregues campos):
+    //
+    // if (current < 2) {
+    //   for (var product in _productsBox.values) {
+    //     product.imagePath = product.imagePath; // asigna el valor por defecto
+    //     await product.save();
+    //   }
+    // }
+    //
+    // if (current < 3) {
+    //   // nueva lógica aquí
+    // }
+
+    await _metaBox.put('db_version', _schemaVersion);
   }
 
   // ValueListenable for UI updates
@@ -45,19 +104,23 @@ class DatabaseService {
   // Product CRUD
   Future<void> addProduct(Product product) async {
     await _productsBox.add(product);
+    _scheduleAutoBackup();
   }
 
   Future<void> updateProduct(int index, Product product) async {
     await _productsBox.putAt(index, product);
+    _scheduleAutoBackup();
   }
 
   Future<void> deleteProduct(int index) async {
     await _productsBox.deleteAt(index);
+    _scheduleAutoBackup();
   }
 
   // Sale CRUD
   Future<void> addSale(Sale sale) async {
     await _salesBox.add(sale);
+    _scheduleAutoBackup();
   }
 
   Future<void> deleteSale(dynamic key) async {
@@ -73,6 +136,7 @@ class DatabaseService {
       }
     }
     await _salesBox.delete(key);
+    _scheduleAutoBackup();
   }
 
   // Get sales between dates
@@ -156,10 +220,12 @@ class DatabaseService {
 
   Future<void> addCashCount(CashCount count) async {
     await _cashboxBox.add(count);
+    _scheduleAutoBackup();
   }
 
   Future<void> deleteCashCount(dynamic key) async {
     await _cashboxBox.delete(key);
+    _scheduleAutoBackup();
   }
 
   List<CashCount> getCashCounts() {
@@ -187,6 +253,7 @@ class DatabaseService {
       note: note,
     );
     await _debtsBox.add(debt);
+    _scheduleAutoBackup();
   }
 
   Future<void> addDebtPayment(
@@ -204,6 +271,7 @@ class DatabaseService {
       commissionAmount: commissionAmount,
     ));
     await debt.save();
+    _scheduleAutoBackup();
   }
 
   Future<void> deleteDebt(dynamic key) async {
@@ -219,6 +287,7 @@ class DatabaseService {
       }
     }
     await _debtsBox.delete(key);
+    _scheduleAutoBackup();
   }
 
   List<Debt> getDebts() {
@@ -275,6 +344,43 @@ class DatabaseService {
     await Share.shareXFiles([XFile(file.path)], text: 'Copia de seguridad - Cuentas Claras');
   }
 
+  // Programa un auto-backup en la carpeta Descargas.
+  // Se agrupan los cambios rápidos en un solo archivo (debounce de 1.5s).
+  void _scheduleAutoBackup() {
+    _backupDebounce?.cancel();
+    _backupDebounce = Timer(const Duration(milliseconds: 1500), _saveAutoBackup);
+  }
+
+  // Genera el JSON de respaldo y lo guarda en la carpeta Descargas con nombre y fecha.
+  Future<void> _saveAutoBackup() async {
+    try {
+      final Map<String, dynamic> backup = {
+        'products': _productsBox.values.map((p) => p.toJson()).toList(),
+        'sales': _salesBox.values.map((s) => s.toJson()).toList(),
+        'cashbox': _cashboxBox.values.map((c) => c.toJson()).toList(),
+        'debts': _debtsBox.values.map((d) => d.toJson()).toList(),
+        'date': DateTime.now().toIso8601String(),
+      };
+
+      final jsonString = jsonEncode(backup);
+      final directory = await getTemporaryDirectory();
+      final now = DateTime.now();
+      String two(int n) => n.toString().padLeft(2, '0');
+      final fileName = 'cuentas_claras_${now.year}-${two(now.month)}-${two(now.day)}_${two(now.hour)}-${two(now.minute)}.json';
+
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsString(jsonString);
+
+      await MediaStore().saveFile(
+        tempFilePath: file.path,
+        dirType: DirType.download,
+        dirName: DirName.download,
+      );
+    } catch (e) {
+      debugPrint('Auto-backup falló: $e');
+    }
+  }
+
   Future<void> importData() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
 
@@ -310,6 +416,7 @@ class DatabaseService {
         await _salesBox.addAll(sales);
         await _cashboxBox.addAll(counts);
         await _debtsBox.addAll(debts);
+        _scheduleAutoBackup();
       } else {
         throw const FormatException('El archivo no es una copia de Cuentas Claras válida');
       }

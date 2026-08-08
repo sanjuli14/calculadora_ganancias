@@ -29,7 +29,11 @@ class AuthService {
   List<String> _cachedClients() {
     final cached = _box.get(_cacheKey);
     if (cached == null) return const [];
-    return (jsonDecode(cached) as List).cast<String>();
+    try {
+      return (jsonDecode(cached) as List).cast<String>();
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<bool> refreshClients() async {
@@ -39,14 +43,26 @@ class AuthService {
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final clients = (data['clients'] as List).cast<String>();
+        final rawClients = data['clients'] as List;
+        final clients = rawClients.map((c) {
+          // El Gist puede guardar cada cliente como:
+          //   - un objeto: {"name": "Panadería", "hash": "..."}  (formato nuevo)
+          //   - un string: el hash directamente                  (formato anterior)
+          if (c is Map) return c['hash'] as String;
+          return c as String;
+        }).toList();
+        if (clients.isEmpty) return false;
         await _box.put(_cacheKey, jsonEncode(clients));
         return true;
       }
+      return false;
+    } on FormatException {
+      // El Gist no devolvió un JSON válido (puede estar roto o con formato incorrecto).
+      return false;
     } catch (_) {
-      // Sin conexión o error: se usa la lista guardada en el teléfono.
+      // Sin conexión o error de red: se usa la lista guardada en el teléfono.
+      return false;
     }
-    return false;
   }
 
   bool validateCode(String code) {
