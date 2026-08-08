@@ -25,12 +25,14 @@ jobs:
 
       - name: Set up keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/cuentasclaras-keystore.jks
+          echo "${{ secrets.KEYSTORE_BASE64 }}" > /tmp/keystore_b64.txt
+          base64 --decode /tmp/keystore_b64.txt > android/app/cuentasclaras-keystore.jks
           echo "${{ secrets.KEY_PROPERTIES }}" > android/key.properties
 
       - name: Verify keystore was written
         run: |
-          test -s android/app/cuentasclaras-keystore.jks && echo "keystore OK"
+          ls -la android/app/cuentasclaras-keystore.jks
+          sha256sum android/app/cuentasclaras-keystore.jks
           test -s android/key.properties && echo "key.properties OK"
 
       - name: Fetch dependencies
@@ -38,6 +40,18 @@ jobs:
 
       - name: Build release APK
         run: flutter build apk --release
+
+      - name: Verify keystore checksum
+        run: |
+          EXPECTED="dac4489fe2fd899a97eb5e152f7f5f5918fe2883926a00b8605f7791d94403ff"
+          ACTUAL=$(sha256sum android/app/cuentasclaras-keystore.jks | awk '{print $1}')
+          echo "Expected: $EXPECTED"
+          echo "Actual:   $ACTUAL"
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "KEYSTORE CORRUPT: checksum mismatch"
+            exit 1
+          fi
+          echo "Keystore verified OK"
 
       - name: Verify APK is signed with release key
         run: |
