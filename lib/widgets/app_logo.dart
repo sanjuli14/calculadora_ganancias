@@ -22,21 +22,13 @@ class AppLogo extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (withIcon) ...[
-          Container(
-            width: fontSize * 1.3,
-            height: fontSize * 1.3,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.navy, AppColors.turquoise],
-              ),
-              borderRadius: BorderRadius.circular(fontSize * 0.4),
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_outlined,
-              color: Colors.white,
-              size: 18,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(fontSize * 0.4),
+            child: Image.asset(
+              'assets/icon/icon_splash.png',
+              width: fontSize * 1.6,
+              height: fontSize * 1.6,
+              fit: BoxFit.cover,
             ),
           ),
           const SizedBox(width: 8),

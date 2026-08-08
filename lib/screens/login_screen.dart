@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String _errorMessage(bool updated) {
     if (!updated) {
-      return 'Sin conexión. Conecta a internet al menos una vez para activar tu licencia.';
+      return 'No se pudo conectar. Revisa tu internet y vuelve a intentar.';
     }
     return 'Código incorrecto o licencia no activada. Envía tu ID de dispositivo al vendedor.';
   }

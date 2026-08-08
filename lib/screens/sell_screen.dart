@@ -20,6 +20,7 @@ class _SellScreenState extends State<SellScreen> {
   final _quantityController = TextEditingController(text: '1');
   final _customerController = TextEditingController();
   final _commissionController = TextEditingController();
+  final _exchangeRateController = TextEditingController();
   final _noteController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   String _paymentMethod = PaymentMethod.cash;
@@ -30,6 +31,7 @@ class _SellScreenState extends State<SellScreen> {
     _quantityController.dispose();
     _customerController.dispose();
     _commissionController.dispose();
+    _exchangeRateController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -37,6 +39,12 @@ class _SellScreenState extends State<SellScreen> {
   double get _commission {
     if (_paymentMethod != PaymentMethod.transfer || !_applyCommission) return 0;
     return double.tryParse(_commissionController.text) ?? 0;
+  }
+
+  double? get _exchangeRate {
+    if (_paymentMethod != PaymentMethod.dollar) return null;
+    final v = double.tryParse(_exchangeRateController.text);
+    return (v == null || v <= 0) ? null : v;
   }
 
   @override
@@ -214,6 +222,23 @@ class _SellScreenState extends State<SellScreen> {
                       },
                     ),
                   ],
+                ] else if (_paymentMethod == PaymentMethod.dollar) ...[
+                  TextFormField(
+                    controller: _exchangeRateController,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de cambio (1 USD en CUP)',
+                      hintText: 'Ej: 120',
+                      prefixIcon: Icon(Icons.currency_exchange),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      final v = double.tryParse(value ?? '');
+                      if (value == null || value.isEmpty || v == null || v <= 0) {
+                        return 'Ingresa el tipo de cambio';
+                      }
+                      return null;
+                    },
+                  ),
                 ],
                 const SizedBox(height: 20),
                 if (_selectedProduct != null) ...[
@@ -222,6 +247,7 @@ class _SellScreenState extends State<SellScreen> {
                     quantityController: _quantityController,
                     paymentMethod: _paymentMethod,
                     commission: _commission,
+                    exchangeRate: _exchangeRate,
                   ),
                   const SizedBox(height: 20),
                 ],
@@ -274,6 +300,7 @@ class _SellScreenState extends State<SellScreen> {
       date: DateTime.now(),
       paymentMethod: _paymentMethod,
       commissionAmount: _commission > 0 ? _commission : null,
+      exchangeRate: _exchangeRate,
     );
 
     product.stock -= quantity;
@@ -281,10 +308,16 @@ class _SellScreenState extends State<SellScreen> {
     await db.addSale(sale);
 
     if (!mounted) return;
-    final msg = _paymentMethod == PaymentMethod.transfer && _commission > 0
-        ? 'Venta registrada (${PaymentMethod.label(_paymentMethod)}, comisión ${formatMoney(_commission)})'
-        : 'Venta registrada (${PaymentMethod.label(_paymentMethod)})';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    final parts = <String>[PaymentMethod.label(_paymentMethod)];
+    if (_paymentMethod == PaymentMethod.transfer && _commission > 0) {
+      parts.add('comisión ${formatMoney(_commission)}');
+    }
+    if (_paymentMethod == PaymentMethod.dollar && _exchangeRate != null) {
+      parts.add('cambio ${formatMoney(_exchangeRate!)}');
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Venta registrada (${parts.join(', ')})')),
+    );
     _resetForm();
   }
 
@@ -292,6 +325,7 @@ class _SellScreenState extends State<SellScreen> {
     _quantityController.text = '1';
     _customerController.clear();
     _commissionController.clear();
+    _exchangeRateController.clear();
     _noteController.clear();
     setState(() {
       _selectedProduct = null;
@@ -320,43 +354,95 @@ class _MethodSelector extends StatelessWidget {
             fontSize: 13,
           ),
         ),
-        const SizedBox(height: 8),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _MethodChip(
               value: PaymentMethod.cash,
-              icon: Icon(Icons.payments_outlined),
-              label: Text('Efectivo'),
+              icon: Icons.payments_outlined,
+              label: 'Efectivo',
+              selected: selected,
+              onTap: onChanged,
             ),
-            ButtonSegment(
+            _MethodChip(
               value: PaymentMethod.transfer,
-              icon: Icon(Icons.account_balance_outlined),
-              label: Text('Transf.'),
+              icon: Icons.account_balance_outlined,
+              label: 'Transferencia',
+              selected: selected,
+              onTap: onChanged,
             ),
-            ButtonSegment(
+            _MethodChip(
+              value: PaymentMethod.dollar,
+              icon: Icons.attach_money_outlined,
+              label: 'Dólar',
+              selected: selected,
+              onTap: onChanged,
+            ),
+            _MethodChip(
               value: PaymentMethod.credit,
-              icon: Icon(Icons.handshake_outlined),
-              label: Text('Fiado'),
+              icon: Icons.handshake_outlined,
+              label: 'Fiado',
+              selected: selected,
+              onTap: onChanged,
             ),
           ],
-          selected: {selected},
-          showSelectedIcon: false,
-          style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.resolveWith(
-              (states) => states.contains(WidgetState.selected)
-                  ? AppColors.navy
-                  : AppColors.surface,
-            ),
-            foregroundColor: WidgetStateProperty.resolveWith(
-              (states) => states.contains(WidgetState.selected)
-                  ? Colors.white
-                  : AppColors.textSecondary,
-            ),
-            side: WidgetStateProperty.all(const BorderSide(color: AppColors.border)),
-          ),
-          onSelectionChanged: (s) => onChanged(s.first),
         ),
       ],
+    );
+  }
+}
+
+class _MethodChip extends StatelessWidget {
+  final String value;
+  final IconData icon;
+  final String label;
+  final String selected;
+  final ValueChanged<String> onTap;
+
+  const _MethodChip({
+    required this.value,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = selected == value;
+    return Material(
+      color: isSelected ? AppColors.navy : AppColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => onTap(value),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected ? AppColors.navy : AppColors.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: isSelected ? Colors.white : AppColors.navy),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -366,12 +452,14 @@ class _SaleSummaryCard extends StatelessWidget {
   final TextEditingController quantityController;
   final String paymentMethod;
   final double commission;
+  final double? exchangeRate;
 
   const _SaleSummaryCard({
     required this.product,
     required this.quantityController,
     required this.paymentMethod,
     required this.commission,
+    this.exchangeRate,
   });
 
   @override
@@ -384,6 +472,8 @@ class _SaleSummaryCard extends StatelessWidget {
         final profit = qty * (product.sellPrice - product.buyPrice);
         final net = total - commission;
         final isCredit = paymentMethod == PaymentMethod.credit;
+        final isDollar = paymentMethod == PaymentMethod.dollar && exchangeRate != null && exchangeRate! > 0;
+        final usdTotal = isDollar ? total / exchangeRate! : 0.0;
 
         return Container(
           padding: const EdgeInsets.all(18),
@@ -424,6 +514,19 @@ class _SaleSummaryCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (isDollar) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Equivalente en USD', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    Text(
+                      '\$${usdTotal.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.navy),
+                    ),
+                  ],
+                ),
+              ],
               if (commission > 0) ...[
                 const SizedBox(height: 8),
                 Row(

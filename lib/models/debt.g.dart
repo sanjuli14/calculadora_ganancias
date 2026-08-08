@@ -24,7 +24,7 @@ class DebtAdapter extends TypeAdapter<Debt> {
       unitCost: fields[4] as double,
       date: fields[5] as DateTime,
       note: fields[6] as String?,
-      payments: (fields[7] as List?)?.cast<Payment>() ?? [],
+      payments: (fields[7] as List?)?.cast<Payment>(),
     );
   }
 

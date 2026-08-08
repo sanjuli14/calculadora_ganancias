@@ -10,6 +10,7 @@ import '../widgets/stat_card.dart';
 import '../widgets/section_header.dart';
 import 'fiados_screen.dart';
 import 'summary_screen.dart';
+import 'help_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -100,6 +101,23 @@ class DashboardScreen extends StatelessWidget {
                                           side: const BorderSide(color: AppColors.border),
                                         ),
                                         icon: const Icon(Icons.calendar_month, color: AppColors.navy),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        tooltip: 'Ayuda',
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => const HelpScreen(),
+                                            ),
+                                          );
+                                        },
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: AppColors.surface,
+                                          side: const BorderSide(color: AppColors.border),
+                                        ),
+                                        icon: const Icon(Icons.help_outline, color: AppColors.navy),
                                       ),
                                     ],
                                   ),
