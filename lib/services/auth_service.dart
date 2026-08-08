@@ -29,14 +29,16 @@ class AuthService {
 
   // La sesión queda guardada en el teléfono: si Android reinicia la app
   // (por ejemplo al volver del selector de archivos), no se vuelve a pedir login.
-  bool get isLoggedIn => _box.get(_loggedKey, defaultValue: false) == true;
+  // El box "licenses" se abre como Box<String>, así que la sesión se guarda
+  // como texto ("true"/"false") para respetar el tipo del box.
+  bool get isLoggedIn => _box.get(_loggedKey, defaultValue: '') == 'true';
 
   Future<void> markLoggedIn() async {
-    await _box.put(_loggedKey, true);
+    await _box.put(_loggedKey, 'true');
   }
 
   Future<void> markLoggedOut() async {
-    await _box.put(_loggedKey, false);
+    await _box.put(_loggedKey, 'false');
   }
 
   List<String> _cachedClients() {
