@@ -14,6 +14,7 @@ class AuthService {
   static const String _boxName = 'licenses';
   static const String _deviceKey = 'device_id';
   static const String _cacheKey = 'clients_cache';
+  static const String _loggedKey = 'logged_in';
 
   late Box _box;
 
@@ -25,6 +26,18 @@ class AuthService {
   }
 
   String get deviceId => _box.get(_deviceKey) as String;
+
+  // La sesión queda guardada en el teléfono: si Android reinicia la app
+  // (por ejemplo al volver del selector de archivos), no se vuelve a pedir login.
+  bool get isLoggedIn => _box.get(_loggedKey, defaultValue: false) == true;
+
+  Future<void> markLoggedIn() async {
+    await _box.put(_loggedKey, true);
+  }
+
+  Future<void> markLoggedOut() async {
+    await _box.put(_loggedKey, false);
+  }
 
   List<String> _cachedClients() {
     final cached = _box.get(_cacheKey);

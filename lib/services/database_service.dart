@@ -38,6 +38,45 @@ class DatabaseService {
     await _metaBox.put('onboarding_seen', true);
   }
 
+  // Lista de copias automáticas guardadas en el teléfono (nombre + uri).
+  // Se guardan las URIs para poder restaurar desde la app sin abrir el
+  // selector de archivos (que reiniciaba la app y pedía login de nuevo).
+  static const String _savedBackupsKey = 'saved_backups';
+
+  List<Map<String, String>> get savedBackups {
+    final raw = _metaBox.get(_savedBackupsKey);
+    if (raw == null) return const [];
+    try {
+      return (jsonDecode(raw as String) as List)
+          .map((e) => (e as Map).cast<String, String>())
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> _recordSavedBackup(String name, String uri) async {
+    final backups = List<Map<String, String>>.from(savedBackups);
+    backups.insert(0, {'name': name, 'uri': uri});
+    // Se conservan solo las 20 más recientes para no acumular.
+    if (backups.length > 20) {
+      backups.removeRange(20, backups.length);
+    }
+    await _metaBox.put(_savedBackupsKey, jsonEncode(backups));
+  }
+
+  // Lee el contenido de una copia guardada por su URI (sin salir de la app).
+  Future<String> _readBackupByUri(String uriString) async {
+    final dir = await getTemporaryDirectory();
+    final tempFile = File('${dir.path}/backup_restore_${DateTime.now().millisecondsSinceEpoch}.json');
+    final ok = await MediaStore()
+        .readFileUsingUri(uriString: uriString, tempFilePath: tempFile.path);
+    if (!ok || !await tempFile.exists()) {
+      throw const FormatException('No se pudo leer la copia desde el teléfono');
+    }
+    return await tempFile.readAsString();
+  }
+
   Future<void> init() async {    await Hive.initFlutter();
     Hive.registerAdapter(ProductAdapter());
     Hive.registerAdapter(SaleAdapter());
@@ -371,55 +410,84 @@ class DatabaseService {
       final file = File('${directory.path}/$fileName');
       await file.writeAsString(jsonString);
 
-      await MediaStore().saveFile(
+      final saveInfo = await MediaStore().saveFile(
         tempFilePath: file.path,
         dirType: DirType.download,
         dirName: DirName.download,
       );
+      if (saveInfo != null) {
+        await _recordSavedBackup(saveInfo.name, saveInfo.uri.toString());
+      }
     } catch (e) {
       debugPrint('Auto-backup falló: $e');
     }
   }
 
+  // Restaura los datos desde un backup guardado en el teléfono (por URI).
+  // No abre el selector de archivos: funciona 100% dentro de la app.
+  Future<void> restoreFromUri(String uri) async {
+    final jsonString = await _readBackupByUri(uri);
+    await _restoreFromJsonString(jsonString);
+  }
+
+  // Abre el selector de archivos del sistema para elegir una copia manual.
+  // Se mantiene como opción por si la copia llegó por otra vía (WhatsApp, etc.).
   Future<void> importData() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+      withData: true,
+    );
 
-    if (result != null && result.files.single.path != null) {
-      final file = File(result.files.single.path!);
-      final jsonString = await file.readAsString();
-      final Map<String, dynamic> backup = jsonDecode(jsonString);
-
-      if (backup['products'] != null &&
-          backup['sales'] != null &&
-          backup['cashbox'] != null &&
-          backup['debts'] != null) {
-        // Clear all boxes for a clean restore and avoid duplicates
-        await _productsBox.clear();
-        await _salesBox.clear();
-        await _cashboxBox.clear();
-        await _debtsBox.clear();
-
-        final products = (backup['products'] as List)
-            .map((i) => Product.fromJson(i))
-            .toList();
-        final sales = (backup['sales'] as List)
-            .map((i) => Sale.fromJson(i))
-            .toList();
-        final counts = (backup['cashbox'] as List)
-            .map((i) => CashCount.fromJson(i))
-            .toList();
-        final debts = (backup['debts'] as List)
-            .map((i) => Debt.fromJson(i))
-            .toList();
-
-        await _productsBox.addAll(products);
-        await _salesBox.addAll(sales);
-        await _cashboxBox.addAll(counts);
-        await _debtsBox.addAll(debts);
-        _scheduleAutoBackup();
+    if (result != null && result.files.isNotEmpty) {
+      final picked = result.files.single;
+      String jsonString;
+      if (picked.bytes != null) {
+        // withData: lee el contenido en memoria, sin depender del path.
+        jsonString = utf8.decode(picked.bytes!);
+      } else if (picked.path != null) {
+        final file = File(picked.path!);
+        jsonString = await file.readAsString();
       } else {
-        throw const FormatException('El archivo no es una copia de Cuentas Claras válida');
+        throw const FormatException('No se pudo leer el archivo seleccionado');
       }
+      await _restoreFromJsonString(jsonString);
+    }
+  }
+
+  Future<void> _restoreFromJsonString(String jsonString) async {
+    final Map<String, dynamic> backup = jsonDecode(jsonString);
+
+    if (backup['products'] != null &&
+        backup['sales'] != null &&
+        backup['cashbox'] != null &&
+        backup['debts'] != null) {
+      // Clear all boxes for a clean restore and avoid duplicates
+      await _productsBox.clear();
+      await _salesBox.clear();
+      await _cashboxBox.clear();
+      await _debtsBox.clear();
+
+      final products = (backup['products'] as List)
+          .map((i) => Product.fromJson(i))
+          .toList();
+      final sales = (backup['sales'] as List)
+          .map((i) => Sale.fromJson(i))
+          .toList();
+      final counts = (backup['cashbox'] as List)
+          .map((i) => CashCount.fromJson(i))
+          .toList();
+      final debts = (backup['debts'] as List)
+          .map((i) => Debt.fromJson(i))
+          .toList();
+
+      await _productsBox.addAll(products);
+      await _salesBox.addAll(sales);
+      await _cashboxBox.addAll(counts);
+      await _debtsBox.addAll(debts);
+      _scheduleAutoBackup();
+    } else {
+      throw const FormatException('El archivo no es una copia de Cuentas Claras válida');
     }
   }
 }

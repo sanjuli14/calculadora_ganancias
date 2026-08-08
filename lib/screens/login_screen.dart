@@ -71,6 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goToMain() {
+    context.read<AuthService>().markLoggedIn();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const MainScreen()),
     );
