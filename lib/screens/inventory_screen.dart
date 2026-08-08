@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../models/product.dart';
 import '../services/database_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/product_card.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -39,66 +40,99 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final databaseService = Provider.of<DatabaseService>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Buscar producto...',
-            hintStyle: TextStyle(color: Colors.white70),
-            border: InputBorder.none,
-            icon: Icon(Icons.search, color: Colors.white),
-            filled: false,
-          ),
-          cursorColor: Colors.white,
-        ),
-      ),
-      body: ValueListenableBuilder<Box<Product>>(
-        valueListenable: databaseService.productsListenable,
-        builder: (context, box, _) {
-          var products = box.values.toList().cast<Product>();
-
-          if (_searchQuery.isNotEmpty) {
-            products = products.where((p) => p.name.toLowerCase().contains(_searchQuery)).toList();
-          }
-
-          if (products.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                   Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey.shade300),
-                   const SizedBox(height: 16),
-                   Text(
-                    _searchQuery.isNotEmpty 
-                        ? 'No se encontraron productos'
-                        : 'Tu inventario está vacío',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Usa el botón + para agregar uno nuevo',
-                     style: TextStyle(color: Colors.grey),
-                  ),
-                ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar producto...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                ),
               ),
-            );
-          }
+            ),
+            Expanded(
+              child: ValueListenableBuilder<Box<Product>>(
+                valueListenable: databaseService.productsListenable,
+                builder: (context, box, _) {
+                  var products = box.values.toList().cast<Product>();
 
-          return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80), // Space for FAB
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return ProductCard(
-                product: product,
-                onEdit: () => _showProductDialog(context, databaseService, product: product),
-                onDelete: () => _confirmDelete(context, databaseService, product),
-              );
-            },
-          );
-        },
+                  if (_searchQuery.isNotEmpty) {
+                    products = products
+                        .where((p) => p.name.toLowerCase().contains(_searchQuery))
+                        .toList();
+                  }
+
+                  if (products.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 96,
+                            height: 96,
+                            decoration: BoxDecoration(
+                              color: AppColors.navySoft,
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                            child: const Icon(
+                              Icons.inventory_2_outlined,
+                              size: 44,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? 'No se encontraron productos'
+                                : 'Tu inventario está vacío',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _searchQuery.isNotEmpty
+                                ? 'Intenta con otro término'
+                                : 'Usa el botón + para agregar uno nuevo',
+                            style: const TextStyle(color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                    itemCount: products.length,
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      return ProductCard(
+                        product: product,
+                        onEdit: () => _showProductDialog(context, databaseService, product: product),
+                        onDelete: () => _confirmDelete(context, databaseService, product),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showProductDialog(context, databaseService),
@@ -121,11 +155,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
           TextButton(
             onPressed: () async {
-              // We need to find the key to delete
-              await product.delete(); 
+              await product.delete();
               Navigator.pop(context);
             },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: const Text('Eliminar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -161,12 +194,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     },
                     child: CircleAvatar(
                       radius: 40,
-                      backgroundColor: Colors.grey.shade200,
+                      backgroundColor: AppColors.navySoft,
                       backgroundImage: currentImagePath != null && File(currentImagePath!).existsSync()
                           ? FileImage(File(currentImagePath!))
                           : null,
                       child: currentImagePath == null
-                          ? const Icon(Icons.add_a_photo, size: 30, color: Colors.grey)
+                          ? const Icon(Icons.add_a_photo, size: 30, color: AppColors.navy)
                           : null,
                     ),
                   ),
@@ -177,7 +210,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           currentImagePath = null;
                         });
                       },
-                      child: const Text('Eliminar Imagen', style: TextStyle(color: Colors.red)),
+                      child: const Text('Eliminar Imagen', style: TextStyle(color: AppColors.danger)),
                     ),
                   const SizedBox(height: 16),
                   TextField(
@@ -226,7 +259,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   }
 
                   if (product == null) {
-                    // Add new
                     final newProduct = Product(
                       name: name,
                       buyPrice: buyPrice,
@@ -236,13 +268,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     );
                     db.addProduct(newProduct);
                   } else {
-                    // Edit existing
                     product.name = name;
                     product.buyPrice = buyPrice;
                     product.sellPrice = sellPrice;
                     product.stock = stock;
                     product.imagePath = currentImagePath;
-                    product.save(); // HiveObject method
+                    product.save();
                   }
                   Navigator.pop(context);
                 },
