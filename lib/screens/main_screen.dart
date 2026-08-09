@@ -44,7 +44,17 @@ class _MainScreenBody extends StatelessWidget {
           PopupMenuButton<String>(
             onSelected: (value) async {
               final db = Provider.of<DatabaseService>(context, listen: false);
-              if (value == 'export') {
+              if (value == 'backup') {
+                final messenger = ScaffoldMessenger.of(context);
+                final ok = await db.makeBackup();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(ok
+                        ? 'Copia guardada en Descargas/CuentasClaras'
+                        : 'No se pudo guardar la copia'),
+                  ),
+                );
+              } else if (value == 'export') {
                 await db.exportData();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -58,6 +68,12 @@ class _MainScreenBody extends StatelessWidget {
             itemBuilder: (BuildContext context) {
               return [
                 const PopupMenuItem(
+                  value: 'backup',
+                  child: Row(
+                    children: [Icon(Icons.save_alt, color: AppColors.emerald), SizedBox(width: 8), Text('Hacer Backup')],
+                  ),
+                ),
+                const PopupMenuItem(
                   value: 'export',
                   child: Row(
                     children: [Icon(Icons.upload_file, color: AppColors.navy), SizedBox(width: 8), Text('Exportar Copia')],
@@ -66,7 +82,7 @@ class _MainScreenBody extends StatelessWidget {
                 const PopupMenuItem(
                   value: 'import',
                   child: Row(
-                    children: [Icon(Icons.download, color: AppColors.emerald), SizedBox(width: 8), Text('Importar Copia')],
+                    children: [Icon(Icons.download, color: AppColors.navy), SizedBox(width: 8), Text('Importar Copia')],
                   ),
                 ),
               ];
@@ -151,7 +167,7 @@ Future<void> _showImportOptions(BuildContext context, DatabaseService db) async 
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Text(
-                    'Aún no hay copias automáticas en este teléfono.',
+                    'Aún no hay copias guardadas en este teléfono.',
                     style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                   ),
                 )

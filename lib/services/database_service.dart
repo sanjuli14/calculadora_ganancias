@@ -4,7 +4,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:media_store_plus/media_store_plus.dart';
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import '../models/product.dart';
@@ -25,7 +24,6 @@ class DatabaseService {
   late Box<CashCount> _cashboxBox;
   late Box<Debt> _debtsBox;
   late Box _metaBox;
-  Timer? _backupDebounce;
 
   Box<Product> get productsBox => _productsBox;
   Box<Sale> get salesBox => _salesBox;
@@ -143,23 +141,19 @@ class DatabaseService {
   // Product CRUD
   Future<void> addProduct(Product product) async {
     await _productsBox.add(product);
-    _scheduleAutoBackup();
   }
 
   Future<void> updateProduct(int index, Product product) async {
     await _productsBox.putAt(index, product);
-    _scheduleAutoBackup();
   }
 
   Future<void> deleteProduct(int index) async {
     await _productsBox.deleteAt(index);
-    _scheduleAutoBackup();
   }
 
   // Sale CRUD
   Future<void> addSale(Sale sale) async {
     await _salesBox.add(sale);
-    _scheduleAutoBackup();
   }
 
   Future<void> deleteSale(dynamic key) async {
@@ -175,7 +169,6 @@ class DatabaseService {
       }
     }
     await _salesBox.delete(key);
-    _scheduleAutoBackup();
   }
 
   // Get sales between dates
@@ -259,12 +252,10 @@ class DatabaseService {
 
   Future<void> addCashCount(CashCount count) async {
     await _cashboxBox.add(count);
-    _scheduleAutoBackup();
   }
 
   Future<void> deleteCashCount(dynamic key) async {
     await _cashboxBox.delete(key);
-    _scheduleAutoBackup();
   }
 
   List<CashCount> getCashCounts() {
@@ -292,7 +283,6 @@ class DatabaseService {
       note: note,
     );
     await _debtsBox.add(debt);
-    _scheduleAutoBackup();
   }
 
   Future<void> addDebtPayment(
@@ -310,7 +300,6 @@ class DatabaseService {
       commissionAmount: commissionAmount,
     ));
     await debt.save();
-    _scheduleAutoBackup();
   }
 
   Future<void> deleteDebt(dynamic key) async {
@@ -326,7 +315,6 @@ class DatabaseService {
       }
     }
     await _debtsBox.delete(key);
-    _scheduleAutoBackup();
   }
 
   List<Debt> getDebts() {
@@ -383,15 +371,10 @@ class DatabaseService {
     await Share.shareXFiles([XFile(file.path)], text: 'Copia de seguridad - Cuentas Claras');
   }
 
-  // Programa un auto-backup en la carpeta Descargas.
-  // Se agrupan los cambios rápidos en un solo archivo (debounce de 1.5s).
-  void _scheduleAutoBackup() {
-    _backupDebounce?.cancel();
-    _backupDebounce = Timer(const Duration(milliseconds: 1500), _saveAutoBackup);
-  }
-
   // Genera el JSON de respaldo y lo guarda en la carpeta Descargas con nombre y fecha.
-  Future<void> _saveAutoBackup() async {
+  // Es manual: se llama desde el botón "Hacer Backup" de la app.
+  // Devuelve true si se guardó correctamente.
+  Future<bool> makeBackup() async {
     try {
       final Map<String, dynamic> backup = {
         'products': _productsBox.values.map((p) => p.toJson()).toList(),
@@ -417,9 +400,12 @@ class DatabaseService {
       );
       if (saveInfo != null) {
         await _recordSavedBackup(saveInfo.name, saveInfo.uri.toString());
+        return true;
       }
+      return false;
     } catch (e) {
-      debugPrint('Auto-backup falló: $e');
+      debugPrint('Backup falló: $e');
+      return false;
     }
   }
 
@@ -485,7 +471,6 @@ class DatabaseService {
       await _salesBox.addAll(sales);
       await _cashboxBox.addAll(counts);
       await _debtsBox.addAll(debts);
-      _scheduleAutoBackup();
     } else {
       throw const FormatException('El archivo no es una copia de Cuentas Claras válida');
     }
