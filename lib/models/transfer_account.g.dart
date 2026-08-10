@@ -1,47 +1,44 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'product.dart';
+part of 'transfer_account.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class ProductAdapter extends TypeAdapter<Product> {
+class TransferAccountAdapter extends TypeAdapter<TransferAccount> {
   @override
-  final int typeId = 0;
+  final int typeId = 5;
 
   @override
-  Product read(BinaryReader reader) {
+  TransferAccount read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Product(
-      name: fields[0] as String,
-      buyPrice: fields[1] as double,
-      sellPrice: fields[2] as double,
-      stock: fields[3] as int,
-      imagePath: fields[4] as String?,
-      category: fields[5] as String? ?? '',
+    return TransferAccount(
+      alias: fields[0] as String,
+      bankName: fields[1] as String,
+      cardNumber: fields[2] as String,
+      qrImagePath: fields[3] as String,
+      isDefault: fields[4] as bool,
     );
   }
 
   @override
-  void write(BinaryWriter writer, Product obj) {
+  void write(BinaryWriter writer, TransferAccount obj) {
     writer
-      ..writeByte(6)
-      ..writeByte(0)
-      ..write(obj.name)
-      ..writeByte(1)
-      ..write(obj.buyPrice)
-      ..writeByte(2)
-      ..write(obj.sellPrice)
-      ..writeByte(3)
-      ..write(obj.stock)
-      ..writeByte(4)
-      ..write(obj.imagePath)
       ..writeByte(5)
-      ..write(obj.category);
+      ..writeByte(0)
+      ..write(obj.alias)
+      ..writeByte(1)
+      ..write(obj.bankName)
+      ..writeByte(2)
+      ..write(obj.cardNumber)
+      ..writeByte(3)
+      ..write(obj.qrImagePath)
+      ..writeByte(4)
+      ..write(obj.isDefault);
   }
 
   @override
@@ -50,7 +47,7 @@ class ProductAdapter extends TypeAdapter<Product> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ProductAdapter &&
+      other is TransferAccountAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

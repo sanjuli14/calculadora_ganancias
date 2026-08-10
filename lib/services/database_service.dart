@@ -11,29 +11,46 @@ import '../models/sale.dart';
 import '../models/cashbox.dart';
 import '../models/debt.dart';
 import '../models/payment.dart';
+import '../models/transfer_account.dart';
 
 class DatabaseService {
   // Versión del esquema de la base de datos.
   // Aumenta este número cuando agregues/cambies campos de un modelo y deja
   // la lógica de migración en _migrate(). Así las actualizaciones nunca
   // pierden los datos del usuario.
-  static const int _schemaVersion = 1;
+  static const int _schemaVersion = 2;
 
   late Box<Product> _productsBox;
   late Box<Sale> _salesBox;
   late Box<CashCount> _cashboxBox;
   late Box<Debt> _debtsBox;
+  late Box<TransferAccount> _transferAccountsBox;
+  late Box<String> _categoriesBox;
   late Box _metaBox;
 
   Box<Product> get productsBox => _productsBox;
   Box<Sale> get salesBox => _salesBox;
   Box<CashCount> get cashboxBox => _cashboxBox;
   Box<Debt> get debtsBox => _debtsBox;
+  Box<TransferAccount> get transferAccountsBox => _transferAccountsBox;
+  Box<String> get categoriesBox => _categoriesBox;
 
   bool get onboardingSeen => _metaBox.get('onboarding_seen', defaultValue: false) as bool;
 
   Future<void> markOnboardingSeen() async {
     await _metaBox.put('onboarding_seen', true);
+  }
+
+  // ValorListenable de la box de metadatos para refrescar la UI cuando
+  // cambian campos como la inversión total.
+  ValueListenable<Box> get metaListenable => _metaBox.listenable();
+
+  // Total de la inversión que se hizo (campo manual, configurable por el usuario).
+  double get totalInvestment =>
+      (_metaBox.get('total_investment', defaultValue: 0.0) as num).toDouble();
+
+  Future<void> setTotalInvestment(double value) async {
+    await _metaBox.put('total_investment', value);
   }
 
   // Lista de copias automáticas guardadas en el teléfono (nombre + uri).
@@ -81,6 +98,7 @@ class DatabaseService {
     Hive.registerAdapter(CashCountAdapter());
     Hive.registerAdapter(DebtAdapter());
     Hive.registerAdapter(PaymentAdapter());
+    Hive.registerAdapter(TransferAccountAdapter());
 
     // Abre la box de metadatos (versión de esquema) de forma segura.
     try {
@@ -96,6 +114,8 @@ class DatabaseService {
     _salesBox = await _openBoxSafely<Sale>('sales');
     _cashboxBox = await _openBoxSafely<CashCount>('cashbox');
     _debtsBox = await _openBoxSafely<Debt>('debts');
+    _transferAccountsBox = await _openBoxSafely<TransferAccount>('transfer_accounts');
+    _categoriesBox = await _openBoxSafely<String>('categories');
 
     await _migrate();
   }
@@ -116,14 +136,9 @@ class DatabaseService {
     if (current >= _schemaVersion) return;
 
     // === Migraciones por versión ===
-    // Ejemplo de migración (descomenta y adapta cuando agregues campos):
-    //
-    // if (current < 2) {
-    //   for (var product in _productsBox.values) {
-    //     product.imagePath = product.imagePath; // asigna el valor por defecto
-    //     await product.save();
-    //   }
-    // }
+    // v2: se agregó la box de cuentas para pago por transferencia.
+    // La box se abre en init(), por lo que en esta versión no hay
+    // datos existentes que migrar; solo se actualiza el número de esquema.
     //
     // if (current < 3) {
     //   // nueva lógica aquí
@@ -137,6 +152,9 @@ class DatabaseService {
   ValueListenable<Box<Sale>> get salesListenable => _salesBox.listenable();
   ValueListenable<Box<CashCount>> get cashboxListenable => _cashboxBox.listenable();
   ValueListenable<Box<Debt>> get debtsListenable => _debtsBox.listenable();
+  ValueListenable<Box<TransferAccount>> get transferAccountsListenable =>
+      _transferAccountsBox.listenable();
+  ValueListenable<Box<String>> get categoriesListenable => _categoriesBox.listenable();
 
   // Product CRUD
   Future<void> addProduct(Product product) async {
@@ -149,6 +167,40 @@ class DatabaseService {
 
   Future<void> deleteProduct(int index) async {
     await _productsBox.deleteAt(index);
+  }
+
+  // ---- Categorías de productos ----
+
+  // Devuelve las categorías ordenadas alfabéticamente, sin vacías.
+  List<String> getCategories() {
+    final list = _categoriesBox.values.toList().cast<String>();
+    list.sort();
+    return list;
+  }
+
+  Future<void> addCategory(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    if (_categoriesBox.values.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
+      return;
+    }
+    await _categoriesBox.add(trimmed);
+  }
+
+  Future<void> deleteCategory(String name) async {
+    final keys = _categoriesBox.keys.toList();
+    for (final key in keys) {
+      if (_categoriesBox.get(key) == name) {
+        await _categoriesBox.delete(key);
+      }
+    }
+    // Los productos que usaban la categoría quedan sin categoría.
+    for (final product in _productsBox.values) {
+      if (product.category == name) {
+        product.category = '';
+        await product.save();
+      }
+    }
   }
 
   // Sale CRUD
@@ -353,6 +405,52 @@ class DatabaseService {
     return _debtsBox.values.where((d) => d.isPaid).toList();
   }
 
+  // ---- Cuentas para pago por transferencia ----
+
+  List<TransferAccount> getTransferAccounts() {
+    final list = _transferAccountsBox.values.toList().cast<TransferAccount>();
+    list.sort((a, b) {
+      if (a.isDefault == b.isDefault) return 0;
+      return a.isDefault ? -1 : 1;
+    });
+    return list;
+  }
+
+  TransferAccount? getDefaultTransferAccount() {
+    for (final acc in _transferAccountsBox.values) {
+      if (acc.isDefault) return acc;
+    }
+    return null;
+  }
+
+  Future<void> addTransferAccount(TransferAccount account) async {
+    if (account.isDefault) {
+      await _clearDefaultTransferAccounts();
+    }
+    await _transferAccountsBox.add(account);
+  }
+
+  Future<void> updateTransferAccount(int index, TransferAccount account) async {
+    if (account.isDefault) {
+      await _clearDefaultTransferAccounts();
+    }
+    await _transferAccountsBox.putAt(index, account);
+  }
+
+  Future<void> deleteTransferAccount(dynamic key) async {
+    await _transferAccountsBox.delete(key);
+  }
+
+  Future<void> _clearDefaultTransferAccounts() async {
+    for (var i = 0; i < _transferAccountsBox.length; i++) {
+      final acc = _transferAccountsBox.getAt(i);
+      if (acc != null && acc.isDefault) {
+        acc.isDefault = false;
+        await acc.save();
+      }
+    }
+  }
+
   // Backup logic
   Future<void> exportData() async {
     final Map<String, dynamic> backup = {
@@ -360,6 +458,17 @@ class DatabaseService {
       'sales': _salesBox.values.map((s) => s.toJson()).toList(),
       'cashbox': _cashboxBox.values.map((c) => c.toJson()).toList(),
       'debts': _debtsBox.values.map((d) => d.toJson()).toList(),
+      'transferAccounts': _transferAccountsBox.values
+          .map((a) => {
+                'alias': a.alias,
+                'bankName': a.bankName,
+                'cardNumber': a.cardNumber,
+                'qrImagePath': a.qrImagePath,
+                'isDefault': a.isDefault,
+              })
+          .toList(),
+      'categories': _categoriesBox.values.toList().cast<String>(),
+      'totalInvestment': totalInvestment,
       'date': DateTime.now().toIso8601String(),
     };
 
@@ -381,8 +490,19 @@ class DatabaseService {
         'sales': _salesBox.values.map((s) => s.toJson()).toList(),
         'cashbox': _cashboxBox.values.map((c) => c.toJson()).toList(),
         'debts': _debtsBox.values.map((d) => d.toJson()).toList(),
-        'date': DateTime.now().toIso8601String(),
-      };
+      'transferAccounts': _transferAccountsBox.values
+          .map((a) => {
+                'alias': a.alias,
+                'bankName': a.bankName,
+                'cardNumber': a.cardNumber,
+                'qrImagePath': a.qrImagePath,
+                'isDefault': a.isDefault,
+              })
+          .toList(),
+      'categories': _categoriesBox.values.toList().cast<String>(),
+      'totalInvestment': totalInvestment,
+      'date': DateTime.now().toIso8601String(),
+    };
 
       final jsonString = jsonEncode(backup);
       final directory = await getTemporaryDirectory();
@@ -398,15 +518,52 @@ class DatabaseService {
         dirType: DirType.download,
         dirName: DirName.download,
       );
+
+      // En algunos dispositivos (Android 10) el plugin copia el archivo a
+      // Descargas pero no devuelve el SaveInfo. Verificamos que la copia
+      // realmente exista antes de reportar el resultado.
+      String? savedUri;
       if (saveInfo != null) {
-        await _recordSavedBackup(saveInfo.name, saveInfo.uri.toString());
-        return true;
+        savedUri = saveInfo.uri.toString();
+      } else {
+        savedUri = await _findBackupUriInDownloads(fileName);
       }
-      return false;
+      if (savedUri == null) return false;
+
+      try {
+        await _recordSavedBackup(saveInfo?.name ?? fileName, savedUri);
+      } catch (e) {
+        // Si no se pudo registrar la copia en la lista de la app, la copia
+        // en Descargas sigue siendo válida: no se reporta como error.
+        debugPrint('No se pudo registrar la copia: $e');
+      }
+      return true;
     } catch (e) {
       debugPrint('Backup falló: $e');
       return false;
     }
+  }
+
+  // Localiza la copia recién guardada en Descargas y devuelve su URI.
+  // Sirve como respaldo cuando el plugin no devuelve el SaveInfo.
+  Future<String?> _findBackupUriInDownloads(String fileName) async {
+    // Intenta ubicarla por nombre vía MediaStore (Android 11+).
+    try {
+      final uri = await MediaStore().getFileUri(
+        fileName: fileName,
+        dirType: DirType.download,
+        dirName: DirName.download,
+      );
+      if (uri != null) return uri.toString();
+    } catch (_) {}
+
+    // Fallback Android 10: ruta directa usada por el plugin al copiar.
+    final external = await getExternalStorageDirectory();
+    if (external != null) {
+      final f = File('${external.path}/Download/${MediaStore.appFolder}/$fileName');
+      if (await f.exists()) return f.uri.toString();
+    }
+    return null;
   }
 
   // Restaura los datos desde un backup guardado en el teléfono (por URI).
@@ -453,6 +610,8 @@ class DatabaseService {
       await _salesBox.clear();
       await _cashboxBox.clear();
       await _debtsBox.clear();
+      await _transferAccountsBox.clear();
+      await _categoriesBox.clear();
 
       final products = (backup['products'] as List)
           .map((i) => Product.fromJson(i))
@@ -471,6 +630,42 @@ class DatabaseService {
       await _salesBox.addAll(sales);
       await _cashboxBox.addAll(counts);
       await _debtsBox.addAll(debts);
+
+      if (backup['transferAccounts'] is List) {
+        final accounts = (backup['transferAccounts'] as List)
+            .where((i) => i is Map)
+            .map((i) => TransferAccount(
+                  alias: (i['alias'] ?? '').toString(),
+                  bankName: (i['bankName'] ?? '').toString(),
+                  cardNumber: (i['cardNumber'] ?? '').toString(),
+                  qrImagePath: (i['qrImagePath'] ?? '').toString(),
+                  isDefault: i['isDefault'] == true,
+                ))
+            .toList();
+        if (accounts.isNotEmpty) {
+          await _transferAccountsBox.addAll(accounts);
+        }
+      }
+
+      // Categorías (opcional: los backups viejos no las traen).
+      if (backup['categories'] is List) {
+        final categories = (backup['categories'] as List)
+            .where((c) => c is String && c.toString().trim().isNotEmpty)
+            .map((c) => c.toString())
+            .toSet()
+            .toList();
+        if (categories.isNotEmpty) {
+          await _categoriesBox.addAll(categories);
+        }
+      }
+
+      // Inversión total (opcional: los backups viejos no la traen).
+      if (backup['totalInvestment'] is num) {
+        await _metaBox.put(
+          'total_investment',
+          (backup['totalInvestment'] as num).toDouble(),
+        );
+      }
     } else {
       throw const FormatException('El archivo no es una copia de Cuentas Claras válida');
     }

@@ -15,6 +15,48 @@ class HelpScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
+            const SectionHeader(title: 'Lo nuevo en esta versión'),
+            const SizedBox(height: 12),
+            _InfoCard(
+              icon: Icons.menu,
+              color: AppColors.navy,
+              title: 'Menú lateral (sidebar)',
+              description:
+                  'Arriba a la izquierda hay un botón de menú (☰). Al pulsarlo se abre el '
+                  'menú lateral con las opciones: Cuentas de Transferencia, Hacer Backup, '
+                  'Exportar Copia e Importar Copia. Ya no hay menú (⋮) arriba a la derecha.',
+            ),
+            SizedBox(height: 12),
+            _InfoCard(
+              icon: Icons.account_balance_wallet_outlined,
+              color: AppColors.emerald,
+              title: 'Cuentas para cobrar por transferencia',
+              description:
+                  'Ahora puedes guardar una o varias cuentas para recibir pagos por '
+                  'transferencia. Cada cuenta guarda una foto del QR, el nombre del banco y '
+                  'el número de tarjeta. Así, al vender, eliges cuál mostrarle al cliente.',
+            ),
+            SizedBox(height: 12),
+            _InfoCard(
+              icon: Icons.add_to_photos_outlined,
+              color: AppColors.turquoise,
+              title: 'Cómo guardar una cuenta',
+              description:
+                  'Abre el menú lateral (☰), entra en "Cuentas de Transferencia" y pulsa el '
+                  'botón "+". Agrega un alias, el banco, el número de tarjeta y la foto del QR. '
+                  'Puedes marcar una cuenta como "principal" para que se muestre primero.',
+            ),
+            SizedBox(height: 12),
+            _InfoCard(
+              icon: Icons.payments_outlined,
+              color: AppColors.navy,
+              title: 'Cómo cobrar mostrando el QR',
+              description:
+                  'En "Vender", selecciona "Transferencia" como forma de pago. Aparecerá la '
+                  'cuenta principal con su QR y el número de tarjeta. Toca "Cambiar" para '
+                  'elegir otra cuenta o "Ver QR" para mostrarlo en grande.',
+            ),
+            const SizedBox(height: 24),
             const SectionHeader(title: 'Tus datos y tu responsabilidad'),
             const SizedBox(height: 12),
             _InfoCard(
@@ -75,8 +117,8 @@ class HelpScreen extends StatelessWidget {
               color: AppColors.navy,
               title: 'Cómo hacer una copia manual',
               description:
-                  'Abre el menú (⋮) arriba a la derecha y toca "Exportar Copia". La app genera '
-                  'el archivo .json y te deja compartirlo donde quieras. '
+                  'Abre el menú lateral (☰) arriba a la izquierda y toca "Exportar Copia". '
+                  'La app genera el archivo .json y te deja compartirlo donde quieras. '
                   'Guarda ese archivo en otro lugar para tener tu respaldo.',
             ),
             SizedBox(height: 12),
@@ -85,9 +127,10 @@ class HelpScreen extends StatelessWidget {
               color: AppColors.emerald,
               title: 'Cómo recuperar tus datos',
               description:
-                  'Si reinstalas la app y quieres volver a tener tus datos, toca el menú (⋮) '
-                  'y elige "Importar Copia". Selecciona el archivo .json que guardaste. '
-                  'IMPORTANTE: importa solo después de tener la app instalada y funcionando.',
+                  'Si reinstalas la app y quieres volver a tener tus datos, abre el menú '
+                  'lateral (☰) y elige "Importar Copia". Selecciona el archivo .json que '
+                  'guardaste. IMPORTANTE: importa solo después de tener la app instalada y '
+                  'funcionando.',
             ),
             SizedBox(height: 24),
             const SectionHeader(title: 'Antes de cada actualización'),

@@ -1,12 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
+import '../models/transfer_account.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/payment_methods.dart';
+import 'transfer_accounts_screen.dart';
 
 class SellScreen extends StatefulWidget {
   const SellScreen({super.key});
@@ -25,6 +28,7 @@ class _SellScreenState extends State<SellScreen> {
   final _formKey = GlobalKey<FormState>();
   String _paymentMethod = PaymentMethod.cash;
   bool _applyCommission = false;
+  dynamic _selectedAccountKey;
 
   @override
   void dispose() {
@@ -148,7 +152,12 @@ class _SellScreenState extends State<SellScreen> {
                 const SizedBox(height: 20),
                 _MethodSelector(
                   selected: _paymentMethod,
-                  onChanged: (m) => setState(() => _paymentMethod = m),
+                  onChanged: (m) => setState(() {
+                    _paymentMethod = m;
+                    if (m != PaymentMethod.transfer) {
+                      _selectedAccountKey = null;
+                    }
+                  }),
                 ),
                 const SizedBox(height: 16),
                 if (_paymentMethod == PaymentMethod.credit) ...[
@@ -176,6 +185,23 @@ class _SellScreenState extends State<SellScreen> {
                     ),
                   ),
                 ] else if (_paymentMethod == PaymentMethod.transfer) ...[
+                  ValueListenableBuilder<Box<TransferAccount>>(
+                    valueListenable: databaseService.transferAccountsListenable,
+                    builder: (context, box, _) {
+                      final accounts = databaseService.getTransferAccounts();
+                      return _TransferAccountPicker(
+                        accounts: accounts,
+                        selectedKey: _selectedAccountKey,
+                        onSelected: (key) => setState(() => _selectedAccountKey = key),
+                        onCreate: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const TransferAccountsScreen(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -309,6 +335,12 @@ class _SellScreenState extends State<SellScreen> {
 
     if (!mounted) return;
     final parts = <String>[PaymentMethod.label(_paymentMethod)];
+    if (_paymentMethod == PaymentMethod.transfer && _selectedAccountKey != null) {
+      final acc = db.transferAccountsBox.get(_selectedAccountKey);
+      if (acc != null) {
+        parts.add('a ${acc.alias}');
+      }
+    }
     if (_paymentMethod == PaymentMethod.transfer && _commission > 0) {
       parts.add('comisión ${formatMoney(_commission)}');
     }
@@ -331,6 +363,7 @@ class _SellScreenState extends State<SellScreen> {
       _selectedProduct = null;
       _paymentMethod = PaymentMethod.cash;
       _applyCommission = false;
+      _selectedAccountKey = null;
     });
   }
 }
@@ -569,6 +602,317 @@ class _SaleSummaryCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _TransferAccountPicker extends StatelessWidget {
+  final List<TransferAccount> accounts;
+  final dynamic selectedKey;
+  final ValueChanged<dynamic> onSelected;
+  final VoidCallback onCreate;
+
+  const _TransferAccountPicker({
+    required this.accounts,
+    required this.selectedKey,
+    required this.onSelected,
+    required this.onCreate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (accounts.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.warningSoft,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.warning.withOpacity(0.4)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.info_outline, color: AppColors.warning, size: 22),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'No tienes cuentas de transferencia guardadas.',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: onCreate,
+              style: TextButton.styleFrom(foregroundColor: AppColors.navy),
+              child: const Text('Agregar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final selected = selectedKey == null
+        ? null
+        : accounts.firstWhere(
+            (a) => a.key == selectedKey,
+            orElse: () => accounts.first,
+          );
+    final effective = selected ?? accounts.first;
+    final hasQr = effective.qrImagePath.isNotEmpty &&
+        File(effective.qrImagePath).existsSync();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_balance_outlined, color: AppColors.navy, size: 20),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Cuenta para recibir el pago',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _showAccountSelector(context),
+                icon: const Icon(Icons.swap_horiz, size: 16),
+                label: const Text('Cambiar'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.navy,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: AppColors.navySoft,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: hasQr
+                    ? Image.file(File(effective.qrImagePath), fit: BoxFit.cover)
+                    : const Center(
+                        child: Icon(Icons.qr_code_2, color: AppColors.navy, size: 40),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      effective.alias,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      effective.bankName,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    SelectableText(
+                      effective.cardNumber,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontFamily: 'monospace',
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => _showQrFull(context, effective),
+                      icon: const Icon(Icons.fullscreen, size: 16),
+                      label: const Text('Ver QR'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAccountSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Text(
+                  'Selecciona una cuenta',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: accounts.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1, color: AppColors.border),
+                  itemBuilder: (context, index) {
+                    final acc = accounts[index];
+                    return ListTile(
+                      leading: const Icon(Icons.account_balance_outlined, color: AppColors.navy),
+                      title: Text(
+                        acc.alias,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${acc.bankName} · ${acc.cardNumber}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: acc.isDefault
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.navy,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'Principal',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            )
+                          : null,
+                      onTap: () {
+                        onSelected(acc.key);
+                        Navigator.of(sheetContext).pop();
+                      },
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    onCreate();
+                  },
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Administrar cuentas'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showQrFull(BuildContext context, TransferAccount account) {
+    final hasQr = account.qrImagePath.isNotEmpty &&
+        File(account.qrImagePath).existsSync();
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                account.alias,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${account.bankName} · ${account.cardNumber}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  color: AppColors.navySoft,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: hasQr
+                    ? Image.file(File(account.qrImagePath), fit: BoxFit.contain)
+                    : const Center(
+                        child: Icon(Icons.qr_code_2, size: 96, color: AppColors.navy),
+                      ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -19,12 +19,16 @@ class Product extends HiveObject {
   @HiveField(4)
   String? imagePath;
 
+  @HiveField(5)
+  String category;
+
   Product({
     required this.name,
     required this.buyPrice,
     required this.sellPrice,
     this.stock = 0,
     this.imagePath,
+    this.category = '',
   });
 
   Map<String, dynamic> toJson() {
@@ -33,6 +37,7 @@ class Product extends HiveObject {
       'buyPrice': buyPrice,
       'sellPrice': sellPrice,
       'stock': stock,
+      'category': category,
     };
   }
 
@@ -42,6 +47,7 @@ class Product extends HiveObject {
       buyPrice: json['buyPrice'],
       sellPrice: json['sellPrice'],
       stock: json['stock'],
+      category: json['category'] ?? '',
     );
   }
 }

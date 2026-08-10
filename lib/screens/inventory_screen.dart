@@ -74,60 +74,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         .toList();
                   }
 
-                  if (products.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 96,
-                            height: 96,
-                            decoration: BoxDecoration(
-                              color: AppColors.navySoft,
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                            child: const Icon(
-                              Icons.inventory_2_outlined,
-                              size: 44,
-                              color: AppColors.navy,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            _searchQuery.isNotEmpty
-                                ? 'No se encontraron productos'
-                                : 'Tu inventario está vacío',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _searchQuery.isNotEmpty
-                                ? 'Intenta con otro término'
-                                : 'Usa el botón + para agregar uno nuevo',
-                            style: const TextStyle(color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-                      return ProductCard(
-                        product: product,
-                        onEdit: () => _showProductDialog(context, databaseService, product: product),
-                        onDelete: () => _confirmDelete(context, databaseService, product),
-                      );
-                    },
-                  );
+                  return _buildGroupedList(products, databaseService);
                 },
               ),
             ),
@@ -139,6 +86,85 @@ class _InventoryScreenState extends State<InventoryScreen> {
         label: const Text('Nuevo Producto'),
         icon: const Icon(Icons.add),
       ),
+    );
+  }
+
+  // Agrupa los productos por categoría y los muestra en secciones.
+  Widget _buildGroupedList(List<Product> products, DatabaseService databaseService) {
+    if (products.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: AppColors.navySoft,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                size: 44,
+                color: AppColors.navy,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _searchQuery.isNotEmpty
+                  ? 'No se encontraron productos'
+                  : 'Tu inventario está vacío',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 17,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _searchQuery.isNotEmpty
+                  ? 'Intenta con otro término'
+                  : 'Usa el botón + para agregar uno nuevo',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Agrupar por categoría (orden alfabético). Los que no tienen categoría
+    // van en una sección aparte al final.
+    final Map<String, List<Product>> groups = {};
+    for (final p in products) {
+      final cat = p.category.trim();
+      groups.putIfAbsent(cat, () => []).add(p);
+    }
+    final categoryNames = groups.keys.where((c) => c.isNotEmpty).toList()..sort();
+    final noCategory = groups[''] ?? [];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      children: [
+        for (final cat in categoryNames) ...[
+          _CategoryHeader(name: cat, count: groups[cat]!.length),
+          for (final product in groups[cat]!)
+            _buildProductCard(product, databaseService),
+        ],
+        if (noCategory.isNotEmpty) ...[
+          const _CategoryHeader(name: 'Sin categoría', count: null),
+          for (final product in noCategory)
+            _buildProductCard(product, databaseService),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildProductCard(Product product, DatabaseService databaseService) {
+    return ProductCard(
+      product: product,
+      onEdit: () => _showProductDialog(context, databaseService, product: product),
+      onDelete: () => _confirmDelete(context, databaseService, product),
     );
   }
 
@@ -170,6 +196,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final buyPriceController = TextEditingController(text: product?.buyPrice.toString() ?? '');
     final sellPriceController = TextEditingController(text: product?.sellPrice.toString() ?? '');
     final stockController = TextEditingController(text: product?.stock.toString() ?? '0');
+    final categories = db.getCategories();
+    final currentCategory = product?.category ?? '';
+    String selectedCategory =
+        categories.contains(currentCategory) ? currentCategory : '';
     String? currentImagePath = product?.imagePath;
 
     showDialog(
@@ -236,6 +266,76 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     decoration: const InputDecoration(labelText: 'Stock Inicial'),
                     keyboardType: TextInputType.number,
                   ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedCategory.isEmpty ? null : selectedCategory,
+                          decoration: const InputDecoration(
+                            labelText: 'Categoría',
+                            prefixIcon: Icon(Icons.category_outlined),
+                          ),
+                          hint: const Text('Sin categoría'),
+                          isExpanded: true,
+                          items: [
+                            if (selectedCategory.isNotEmpty && !categories.contains(selectedCategory))
+                              DropdownMenuItem(value: selectedCategory, child: Text(selectedCategory)),
+                            for (final c in categories)
+                              DropdownMenuItem(value: c, child: Text(c)),
+                          ],
+                          onChanged: (value) {
+                            setState(() => selectedCategory = value ?? '');
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: IconButton.filled(
+                          onPressed: () async {
+                            final controller = TextEditingController();
+                            final newCategory = await showDialog<String>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Nueva categoría'),
+                                content: TextField(
+                                  controller: controller,
+                                  autofocus: true,
+                                  textCapitalization: TextCapitalization.sentences,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Nombre',
+                                    hintText: 'Ej: Refrescos, Abarrotes...',
+                                  ),
+                                  onSubmitted: (value) =>
+                                      Navigator.pop(dialogContext, value),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dialogContext),
+                                    child: const Text('Cancelar'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, controller.text),
+                                    child: const Text('Crear'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            final name = newCategory?.trim();
+                            if (name != null && name.isNotEmpty) {
+                              await db.addCategory(name);
+                              setState(() => selectedCategory = name);
+                            }
+                          },
+                          icon: const Icon(Icons.add, size: 20),
+                          tooltip: 'Crear categoría',
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -250,6 +350,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   final buyPrice = double.tryParse(buyPriceController.text) ?? 0.0;
                   final sellPrice = double.tryParse(sellPriceController.text) ?? 0.0;
                   final stock = int.tryParse(stockController.text) ?? 0;
+                  final category = selectedCategory.trim();
 
                   if (name.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -265,6 +366,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       sellPrice: sellPrice,
                       stock: stock,
                       imagePath: currentImagePath,
+                      category: category,
                     );
                     db.addProduct(newProduct);
                   } else {
@@ -273,6 +375,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     product.sellPrice = sellPrice;
                     product.stock = stock;
                     product.imagePath = currentImagePath;
+                    product.category = category;
                     product.save();
                   }
                   Navigator.pop(context);
@@ -282,6 +385,69 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _CategoryHeader extends StatelessWidget {
+  final String name;
+  final int? count;
+
+  const _CategoryHeader({required this.name, this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 16, 4, 10),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.navySoft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.category_outlined,
+              size: 18,
+              color: AppColors.navy,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (count != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
