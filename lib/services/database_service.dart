@@ -206,6 +206,11 @@ class DatabaseService {
   // Sale CRUD
   Future<void> addSale(Sale sale) async {
     await _salesBox.add(sale);
+    // Los gastos propios no se cobran: se descuentan automáticamente del
+    // total invertido usando el precio de compra.
+    if (sale.isOwnExpense) {
+      await setTotalInvestment(totalInvestment - sale.ownExpenseCost);
+    }
   }
 
   Future<void> deleteSale(dynamic key) async {
@@ -218,6 +223,10 @@ class DatabaseService {
           await product.save();
           break;
         }
+      }
+      // Al eliminar un gasto propio, se devuelve el importe a la inversión.
+      if (sale.isOwnExpense) {
+        await setTotalInvestment(totalInvestment + sale.ownExpenseCost);
       }
     }
     await _salesBox.delete(key);

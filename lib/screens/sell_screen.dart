@@ -11,6 +11,13 @@ import '../utils/format.dart';
 import '../utils/payment_methods.dart';
 import 'transfer_accounts_screen.dart';
 
+class _CartItem {
+  final Product product;
+  int quantity;
+
+  _CartItem(this.product, this.quantity);
+}
+
 class SellScreen extends StatefulWidget {
   const SellScreen({super.key});
 
@@ -20,6 +27,7 @@ class SellScreen extends StatefulWidget {
 
 class _SellScreenState extends State<SellScreen> {
   Product? _selectedProduct;
+  final List<_CartItem> _cart = [];
   final _quantityController = TextEditingController(text: '1');
   final _customerController = TextEditingController();
   final _commissionController = TextEditingController();
@@ -51,6 +59,71 @@ class _SellScreenState extends State<SellScreen> {
     return (v == null || v <= 0) ? null : v;
   }
 
+  int _inCartFor(Product product) {
+    return _cart
+        .where((i) => i.product.name == product.name)
+        .fold(0, (sum, i) => sum + i.quantity);
+  }
+
+  int get _cartItemCount => _cart.fold(0, (sum, i) => sum + i.quantity);
+
+  bool get _isOwnExpense => _paymentMethod == PaymentMethod.ownExpense;
+
+  double get _cartTotal {
+    return _cart.fold(
+      0.0,
+      (s, i) => s + i.quantity * (i.product.buyPrice),
+    );
+  }
+
+  void _addToCart() {
+    final product = _selectedProduct;
+    if (product == null) {
+      _showSnack('Selecciona un producto primero');
+      return;
+    }
+    final qty = int.tryParse(_quantityController.text) ?? 0;
+    if (qty <= 0) {
+      _showSnack('Ingresa una cantidad válida');
+      return;
+    }
+    final inCart = _inCartFor(product);
+    if (inCart + qty > product.stock) {
+      _showSnack('Stock insuficiente (Máx: ${product.stock - inCart})');
+      return;
+    }
+    final existing = _cart.where((i) => i.product.name == product.name).toList();
+    if (existing.isNotEmpty) {
+      existing.first.quantity += qty;
+    } else {
+      _cart.add(_CartItem(product, qty));
+    }
+    setState(() => _quantityController.text = '1');
+  }
+
+  void _changeQuantity(_CartItem item, int delta) {
+    final next = item.quantity + delta;
+    if (next <= 0) {
+      setState(() => _cart.remove(item));
+      return;
+    }
+    if (next > item.product.stock) {
+      _showSnack('Stock insuficiente (Máx: ${item.product.stock})');
+      return;
+    }
+    setState(() => item.quantity = next);
+  }
+
+  void _clearCart() {
+    setState(() => _cart.clear());
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final databaseService = Provider.of<DatabaseService>(context);
@@ -73,7 +146,7 @@ class _SellScreenState extends State<SellScreen> {
                   ),
                 ),
                 const Text(
-                  'Selecciona producto, cantidad y forma de pago',
+                  'Añade los productos al carrito y elige la forma de pago',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
@@ -116,9 +189,10 @@ class _SellScreenState extends State<SellScreen> {
                         prefixIcon: Icon(Icons.shopping_bag_outlined),
                       ),
                       items: products.map((product) {
+                        final remaining = product.stock - _inCartFor(product);
                         return DropdownMenuItem(
                           value: product,
-                          child: Text('${product.name} (Stock: ${product.stock})'),
+                          child: Text('${product.name} (Stock: $remaining)'),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -132,24 +206,59 @@ class _SellScreenState extends State<SellScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _quantityController,
-                  decoration: const InputDecoration(
-                    labelText: 'Cantidad',
-                    prefixIcon: Icon(Icons.numbers),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Ingrese cantidad';
-                    final qty = int.tryParse(value);
-                    if (qty == null || qty <= 0) return 'Cantidad inválida';
-                    if (_selectedProduct != null && qty > _selectedProduct!.stock) {
-                      return 'Stock insuficiente (Max: ${_selectedProduct!.stock})';
-                    }
-                    return null;
-                  },
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _quantityController,
+                        decoration: const InputDecoration(
+                          labelText: 'Cantidad',
+                          prefixIcon: Icon(Icons.numbers),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: _addToCart,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.navy,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                      ),
+                      icon: const Icon(Icons.add_shopping_cart),
+                      label: const Text('Agregar'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
+                if (_cart.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Carrito ($_cartItemCount producto${_cartItemCount == 1 ? '' : 's'})',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _clearCart,
+                        icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                        label: const Text('Vaciar'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ..._cart.map((item) => _CartLine(
+                        item: item,
+                        isOwnExpense: _isOwnExpense,
+                        onChange: (delta) => _changeQuantity(item, delta),
+                        onRemove: () => setState(() => _cart.remove(item)),
+                      )),
+                  const SizedBox(height: 20),
+                ],
                 _MethodSelector(
                   selected: _paymentMethod,
                   onChanged: (m) => setState(() {
@@ -267,26 +376,35 @@ class _SellScreenState extends State<SellScreen> {
                   ),
                 ],
                 const SizedBox(height: 20),
-                if (_selectedProduct != null) ...[
-                  _SaleSummaryCard(
-                    product: _selectedProduct!,
-                    quantityController: _quantityController,
-                    paymentMethod: _paymentMethod,
-                    commission: _commission,
-                    exchangeRate: _exchangeRate,
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                _SaleSummaryCard(
+                  cart: _cart,
+                  paymentMethod: _paymentMethod,
+                  commission: _commission,
+                  exchangeRate: _exchangeRate,
+                ),
+                const SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: () => _processSale(databaseService),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _paymentMethod == PaymentMethod.credit ? AppColors.turquoise : AppColors.emerald,
+                    backgroundColor: _paymentMethod == PaymentMethod.credit
+                        ? AppColors.turquoise
+                        : _paymentMethod == PaymentMethod.ownExpense
+                            ? AppColors.warning
+                            : AppColors.emerald,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  icon: Icon(_paymentMethod == PaymentMethod.credit ? Icons.handshake_outlined : Icons.check_circle_outline),
+                  icon: Icon(_paymentMethod == PaymentMethod.credit
+                      ? Icons.handshake_outlined
+                      : _paymentMethod == PaymentMethod.ownExpense
+                          ? Icons.person_outline
+                          : Icons.check_circle_outline),
                   label: Text(
-                    _paymentMethod == PaymentMethod.credit ? 'REGISTRAR FIADO' : 'CONFIRMAR VENTA',
+                    _paymentMethod == PaymentMethod.credit
+                        ? 'REGISTRAR FIADO'
+                        : _paymentMethod == PaymentMethod.ownExpense
+                            ? 'REGISTRAR GASTO PROPIO'
+                            : 'CONFIRMAR VENTA',
                   ),
                 ),
               ],
@@ -298,40 +416,55 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   void _processSale(DatabaseService db) async {
-    if (!_formKey.currentState!.validate() || _selectedProduct == null) return;
-    final quantity = int.parse(_quantityController.text);
-    final product = _selectedProduct!;
+    if (_cart.isEmpty) {
+      _showSnack('Agrega al menos un producto al carrito');
+      return;
+    }
+    if (!_formKey.currentState!.validate()) return;
+
+    final now = DateTime.now();
 
     if (_paymentMethod == PaymentMethod.credit) {
       final customer = _customerController.text.trim();
-      await db.registerCreditSale(
-        product,
-        quantity,
-        customer,
-        note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
-      );
+      final note = _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
+      for (final item in _cart) {
+        await db.registerCreditSale(
+          item.product,
+          item.quantity,
+          customer,
+          note: note,
+        );
+      }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Venta a crédito registrada (fiado)')),
-      );
+      _showSnack('Fiado registrado por $customer (${_cart.length} producto${_cart.length == 1 ? '' : 's'})');
       _resetForm();
       return;
     }
 
-    final sale = Sale(
-      productName: product.name,
-      unitBuyPrice: product.buyPrice,
-      unitSellPrice: product.sellPrice,
-      quantity: quantity,
-      date: DateTime.now(),
-      paymentMethod: _paymentMethod,
-      commissionAmount: _commission > 0 ? _commission : null,
-      exchangeRate: _exchangeRate,
+    final totalSubtotal = _cart.fold(
+      0.0,
+      (s, i) => s + i.product.sellPrice * i.quantity,
     );
 
-    product.stock -= quantity;
-    await product.save();
-    await db.addSale(sale);
+    for (final item in _cart) {
+      final subtotal = item.product.sellPrice * item.quantity;
+      final sale = Sale(
+        productName: item.product.name,
+        unitBuyPrice: item.product.buyPrice,
+        unitSellPrice: item.product.sellPrice,
+        quantity: item.quantity,
+        date: now,
+        paymentMethod: _paymentMethod,
+        commissionAmount: _commission > 0 && totalSubtotal > 0
+            ? _commission * (subtotal / totalSubtotal)
+            : null,
+        exchangeRate: _exchangeRate,
+      );
+
+      item.product.stock -= item.quantity;
+      await item.product.save();
+      await db.addSale(sale);
+    }
 
     if (!mounted) return;
     final parts = <String>[PaymentMethod.label(_paymentMethod)];
@@ -347,8 +480,11 @@ class _SellScreenState extends State<SellScreen> {
     if (_paymentMethod == PaymentMethod.dollar && _exchangeRate != null) {
       parts.add('cambio ${formatMoney(_exchangeRate!)}');
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Venta registrada (${parts.join(', ')})')),
+    if (_paymentMethod == PaymentMethod.ownExpense) {
+      parts.add('descontado ${formatMoney(_cartTotal)} de la inversión');
+    }
+    _showSnack(
+      '${_cart.length} venta${_cart.length == 1 ? '' : 's'} registrada${_cart.length == 1 ? '' : 's'} (${parts.join(', ')})',
     );
     _resetForm();
   }
@@ -361,10 +497,106 @@ class _SellScreenState extends State<SellScreen> {
     _noteController.clear();
     setState(() {
       _selectedProduct = null;
+      _cart.clear();
       _paymentMethod = PaymentMethod.cash;
       _applyCommission = false;
       _selectedAccountKey = null;
     });
+  }
+}
+
+class _CartLine extends StatelessWidget {
+  final _CartItem item;
+  final bool isOwnExpense;
+  final ValueChanged<int> onChange;
+  final VoidCallback onRemove;
+
+  const _CartLine({
+    required this.item,
+    required this.isOwnExpense,
+    required this.onChange,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final unitPrice = isOwnExpense ? item.product.buyPrice : item.product.sellPrice;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.product.name,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${formatMoney(unitPrice)} ${isOwnExpense ? '(costo)' : ''}',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: onRemove,
+                icon: const Icon(Icons.close, color: AppColors.danger, size: 20),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => onChange(-1),
+                icon: const Icon(Icons.remove_circle_outline, color: AppColors.navy),
+              ),
+              Expanded(
+                child: Text(
+                  '${item.quantity} u',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () => onChange(1),
+                icon: const Icon(Icons.add_circle_outline, color: AppColors.navy),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                formatMoney(unitPrice * item.quantity),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -417,6 +649,13 @@ class _MethodSelector extends StatelessWidget {
               value: PaymentMethod.credit,
               icon: Icons.handshake_outlined,
               label: 'Fiado',
+              selected: selected,
+              onTap: onChanged,
+            ),
+            _MethodChip(
+              value: PaymentMethod.ownExpense,
+              icon: Icons.person_outline,
+              label: 'Gasto propio',
               selected: selected,
               onTap: onChanged,
             ),
@@ -481,15 +720,13 @@ class _MethodChip extends StatelessWidget {
 }
 
 class _SaleSummaryCard extends StatelessWidget {
-  final Product product;
-  final TextEditingController quantityController;
+  final List<_CartItem> cart;
   final String paymentMethod;
   final double commission;
   final double? exchangeRate;
 
   const _SaleSummaryCard({
-    required this.product,
-    required this.quantityController,
+    required this.cart,
     required this.paymentMethod,
     required this.commission,
     this.exchangeRate,
@@ -497,111 +734,177 @@ class _SaleSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: quantityController,
-      builder: (context, value, _) {
-        final qty = int.tryParse(quantityController.text) ?? 0;
-        final total = qty * product.sellPrice;
-        final profit = qty * (product.sellPrice - product.buyPrice);
-        final net = total - commission;
-        final isCredit = paymentMethod == PaymentMethod.credit;
-        final isDollar = paymentMethod == PaymentMethod.dollar && exchangeRate != null && exchangeRate! > 0;
-        final usdTotal = isDollar ? total / exchangeRate! : 0.0;
+    final isOwnExpense = paymentMethod == PaymentMethod.ownExpense;
+    final total = cart.fold(
+      0.0,
+      (s, i) => s + i.quantity * (isOwnExpense ? i.product.buyPrice : i.product.sellPrice),
+    );
+    final profit = cart.fold(
+      0.0,
+      (s, i) => s + i.quantity * (i.product.sellPrice - i.product.buyPrice),
+    );
+    final count = cart.fold(0, (s, i) => s + i.quantity);
+    final net = total - commission;
+    final isCredit = paymentMethod == PaymentMethod.credit;
+    final isDollar = paymentMethod == PaymentMethod.dollar && exchangeRate != null && exchangeRate! > 0;
+    final usdTotal = isDollar ? total / exchangeRate! : 0.0;
 
-        return Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isCredit
-                  ? [AppColors.turquoiseSoft, AppColors.navySoft]
-                  : [AppColors.navySoft, AppColors.emeraldSoft],
+    if (cart.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.shopping_cart_outlined, color: AppColors.textSecondary, size: 24),
+            SizedBox(width: 12),
+            Text(
+              'El carrito está vacío. Agrega productos.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.navy.withOpacity(0.15)),
-          ),
-          child: Column(
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isCredit
+              ? [AppColors.turquoiseSoft, AppColors.navySoft]
+              : isOwnExpense
+                  ? [AppColors.warningSoft, AppColors.navySoft]
+                  : [AppColors.navySoft, AppColors.emeraldSoft],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.navy.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Precio unitario', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                  Text(
-                    formatMoney(product.sellPrice),
-                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    isCredit ? 'Total a deber' : 'Total a Pagar',
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                  ),
-                  Text(
-                    formatMoney(total),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.navy),
-                  ),
-                ],
-              ),
-              if (isDollar) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Equivalente en USD', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    Text(
-                      '\$${usdTotal.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.navy),
-                    ),
-                  ],
-                ),
-              ],
-              if (commission > 0) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Comisión', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    Text(
-                      '-${formatMoney(commission)}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.danger),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Neto recibido', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    Text(
-                      formatMoney(net),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.emerald),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Ganancia estimada',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  ),
-                  Text(
-                    '+${formatMoney(profit)}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.emerald),
-                  ),
-                ],
+              const Text('Productos en carrito', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              Text(
+                '$count',
+                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
               ),
             ],
           ),
-        );
-      },
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isOwnExpense ? 'Costo unitario promedio' : 'Precio unitario promedio',
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+              Text(
+                formatMoney(count > 0 ? total / count : 0),
+                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isOwnExpense ? 'Total gasto propio' : isCredit ? 'Total a deber' : 'Total a Pagar',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+              ),
+              Text(
+                formatMoney(total),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.navy),
+              ),
+            ],
+          ),
+          if (isOwnExpense) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Se descuenta de tu inversión', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  '-${formatMoney(total)}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.warning),
+                ),
+              ],
+            ),
+          ],
+          if (isDollar) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Equivalente en USD', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  '\$${usdTotal.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.navy),
+                ),
+              ],
+            ),
+          ],
+          if (commission > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Comisión', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  '-${formatMoney(commission)}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.danger),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Neto recibido', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  formatMoney(net),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.emerald),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          if (isOwnExpense)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'No genera ganancia',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const Text(
+                  'Gasto propio',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.warning),
+                ),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Ganancia estimada',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                Text(
+                  '+${formatMoney(profit)}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.emerald),
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }

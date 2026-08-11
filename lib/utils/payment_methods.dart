@@ -5,8 +5,9 @@ class PaymentMethod {
   static const String transfer = 'transferencia';
   static const String credit = 'credito';
   static const String dollar = 'dolar';
+  static const String ownExpense = 'gasto_propio';
 
-  static const List<String> all = [cash, transfer, credit, dollar];
+  static const List<String> all = [cash, transfer, credit, dollar, ownExpense];
 
   static String label(String method) {
     switch (method) {
@@ -16,6 +17,8 @@ class PaymentMethod {
         return 'A Crédito (Fiado)';
       case dollar:
         return 'Dólar';
+      case ownExpense:
+        return 'Gasto propio';
       default:
         return 'Efectivo';
     }
@@ -29,6 +32,8 @@ class PaymentMethod {
         return 'Crédito';
       case dollar:
         return 'USD';
+      case ownExpense:
+        return 'Gasto';
       default:
         return 'Efectivo';
     }
@@ -42,6 +47,8 @@ class PaymentMethod {
         return Icons.handshake_outlined;
       case dollar:
         return Icons.attach_money_outlined;
+      case ownExpense:
+        return Icons.person_outline;
       default:
         return Icons.payments_outlined;
     }

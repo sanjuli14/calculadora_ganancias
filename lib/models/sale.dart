@@ -39,8 +39,10 @@ class Sale extends HiveObject {
     this.exchangeRate,
   });
 
-  double get total => unitSellPrice * quantity;
-  double get profit => (unitSellPrice - unitBuyPrice) * quantity;
+  bool get isOwnExpense => paymentMethod == 'gasto_propio';
+  double get total => isOwnExpense ? 0 : unitSellPrice * quantity;
+  double get profit => isOwnExpense ? 0 : (unitSellPrice - unitBuyPrice) * quantity;
+  double get ownExpenseCost => isOwnExpense ? unitBuyPrice * quantity : 0;
   double get commission => commissionAmount ?? 0;
   double get netReceived => total - commission;
   double get usdAmount => exchangeRate != null && exchangeRate! > 0 ? total / exchangeRate! : 0;

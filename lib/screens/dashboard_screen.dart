@@ -6,7 +6,6 @@ import '../models/sale.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
-import '../widgets/stat_card.dart';
 import '../widgets/section_header.dart';
 import 'fiados_screen.dart';
 import 'summary_screen.dart';
@@ -42,9 +41,6 @@ class DashboardScreen extends StatelessWidget {
                           0.0,
                           (s, x) => s + x.profit,
                         );
-                        final invested = db.getInvestedCapital();
-                        final inventoryValue = db.getInventoryValue();
-                        final outstanding = db.getTotalOutstanding();
                         final lowStock = db.getLowStockProducts();
 
                         final now = DateTime.now();
@@ -172,61 +168,6 @@ class DashboardScreen extends StatelessWidget {
                                         totalInvestment: db.totalInvestment,
                                         onEdit: () =>
                                             _editInvestment(context, db),
-                                      ),
-                                      const SizedBox(height: 20),
-                                      const SectionHeader(
-                                        title: 'Resumen financiero',
-                                        subtitle: 'Tu dinero de un vistazo',
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: StatCard(
-                                              label: 'Dinero invertido',
-                                              value: invested,
-                                              icon: Icons
-                                                  .account_balance_wallet_outlined,
-                                              color: AppColors.navy,
-                                              softColor: AppColors.navySoft,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: StatCard(
-                                              label: 'Por cobrar (fiados)',
-                                              value: outstanding,
-                                              icon: Icons.handshake_outlined,
-                                              color: AppColors.warning,
-                                              softColor: AppColors.warningSoft,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: StatCard(
-                                              label: 'Valor inventario',
-                                              value: inventoryValue,
-                                              icon: Icons.inventory_2_outlined,
-                                              color: AppColors.turquoise,
-                                              softColor:
-                                                  AppColors.turquoiseSoft,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: StatCard(
-                                              label: 'Ganancias totales',
-                                              value: totalProfit,
-                                              icon: Icons.savings_outlined,
-                                              color: AppColors.emerald,
-                                              softColor: AppColors.emeraldSoft,
-                                            ),
-                                          ),
-                                        ],
                                       ),
                                       const SizedBox(height: 20),
                                       const SectionHeader(
@@ -752,12 +693,12 @@ class _RecentSaleTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.emeraldSoft,
+              color: sale.isOwnExpense ? AppColors.warningSoft : AppColors.emeraldSoft,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.receipt_long_outlined,
-              color: AppColors.emerald,
+            child: Icon(
+              sale.isOwnExpense ? Icons.person_outline : Icons.receipt_long_outlined,
+              color: sale.isOwnExpense ? AppColors.warning : AppColors.emerald,
               size: 20,
             ),
           ),
@@ -790,15 +731,17 @@ class _RecentSaleTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '+${formatMoney(sale.total)}',
-                style: const TextStyle(
-                  color: AppColors.emerald,
+                sale.isOwnExpense ? '-${formatMoney(sale.ownExpenseCost)}' : '+${formatMoney(sale.total)}',
+                style: TextStyle(
+                  color: sale.isOwnExpense ? AppColors.warning : AppColors.emerald,
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                 ),
               ),
               Text(
-                'ganancia ${formatMoney(sale.profit)}',
+                sale.isOwnExpense
+                    ? 'Gasto propio'
+                    : 'ganancia ${formatMoney(sale.profit)}',
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 11,

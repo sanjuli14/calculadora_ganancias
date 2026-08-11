@@ -456,10 +456,14 @@ class _SaleTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.emeraldSoft,
+                  color: sale.isOwnExpense ? AppColors.warningSoft : AppColors.emeraldSoft,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.receipt_long_outlined, color: AppColors.emerald, size: 22),
+                child: Icon(
+                  sale.isOwnExpense ? Icons.person_outline : Icons.receipt_long_outlined,
+                  color: sale.isOwnExpense ? AppColors.warning : AppColors.emerald,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -496,18 +500,18 @@ class _SaleTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.navySoft,
+                  color: sale.isOwnExpense ? AppColors.warningSoft : AppColors.navySoft,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(PaymentMethod.icon(sale.paymentMethod), size: 11, color: AppColors.navy),
+                    Icon(PaymentMethod.icon(sale.paymentMethod), size: 11, color: sale.isOwnExpense ? AppColors.warning : AppColors.navy),
                     const SizedBox(width: 3),
                     Text(
                       PaymentMethod.label(sale.paymentMethod),
-                      style: const TextStyle(
-                        color: AppColors.navy,
+                      style: TextStyle(
+                        color: sale.isOwnExpense ? AppColors.warning : AppColors.navy,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -530,29 +534,48 @@ class _SaleTile extends StatelessWidget {
                 ),
               ],
               const Spacer(),
-              Text(
-                '+${formatMoney(sale.total)}',
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+              if (sale.isOwnExpense)
+                Text(
+                  '-${formatMoney(sale.ownExpenseCost)}',
+                  style: const TextStyle(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                )
+              else
+                Text(
+                  '+${formatMoney(sale.total)}',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerRight,
-            child: Text(
-              sale.paymentMethod == 'dolar' && sale.usdAmount > 0
-                  ? 'ganancia ${formatMoney(sale.profit)} • \$${sale.usdAmount.toStringAsFixed(2)} USD'
-                  : 'ganancia ${formatMoney(sale.profit)}',
-              style: const TextStyle(
-                color: AppColors.emerald,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            child: sale.isOwnExpense
+                ? Text(
+                    'Descontado de la inversión',
+                    style: const TextStyle(
+                      color: AppColors.warning,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                : Text(
+                    sale.paymentMethod == 'dolar' && sale.usdAmount > 0
+                        ? 'ganancia ${formatMoney(sale.profit)} • \$${sale.usdAmount.toStringAsFixed(2)} USD'
+                        : 'ganancia ${formatMoney(sale.profit)}',
+                    style: const TextStyle(
+                      color: AppColors.emerald,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
           ),
         ],
       ),

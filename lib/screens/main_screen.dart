@@ -394,7 +394,7 @@ class _DrawerFooter extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
       child: Text(
-        'Cuentas Claras v1.1.0',
+        'Cuentas Claras v1.3.0',
         style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
       ),
     );
