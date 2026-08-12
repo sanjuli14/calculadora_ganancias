@@ -2,6 +2,8 @@ import 'package:hive/hive.dart';
 
 part 'cashbox.g.dart';
 
+enum CashCurrency { cup, usd }
+
 @HiveType(typeId: 2)
 class CashCount extends HiveObject {
   @HiveField(0)
@@ -16,12 +18,21 @@ class CashCount extends HiveObject {
   @HiveField(3)
   String? note;
 
+  @HiveField(4)
+  String currencyCode;
+
   CashCount({
     required this.date,
     required this.denominations,
     this.expectedAmount,
     this.note,
+    this.currencyCode = 'CUP',
   });
+
+  CashCurrency get currency =>
+      currencyCode == 'USD' ? CashCurrency.usd : CashCurrency.cup;
+
+  String get currencyLabel => currency == CashCurrency.usd ? 'USD' : 'CUP';
 
   double get total {
     double sum = 0;
@@ -42,15 +53,18 @@ class CashCount extends HiveObject {
       'denominations': denominations,
       'expectedAmount': expectedAmount,
       'note': note,
+      'currencyCode': currencyCode,
     };
   }
 
   factory CashCount.fromJson(Map<String, dynamic> json) {
+    final code = (json['currencyCode'] as String?) ?? 'CUP';
     return CashCount(
       date: DateTime.parse(json['date'] as String),
       denominations: Map<String, int>.from(json['denominations'] as Map? ?? {}),
       expectedAmount: (json['expectedAmount'] as num?)?.toDouble(),
       note: json['note'] as String?,
+      currencyCode: code == 'USD' ? 'USD' : 'CUP',
     );
   }
 }

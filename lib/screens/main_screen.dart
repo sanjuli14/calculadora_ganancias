@@ -11,6 +11,7 @@ import 'gains_screen.dart';
 import 'cashbox_screen.dart';
 import 'transfer_accounts_screen.dart';
 import 'categories_screen.dart';
+import 'calculator_screen.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -75,6 +76,15 @@ class _MainScreenBody extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).pop();
                   _handleMenuAction(messenger, db, context, 'categories');
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.calculate_outlined,
+                iconColor: AppColors.turquoise,
+                label: 'Calculadora',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'calculator');
                 },
               ),
               const Divider(thickness: 1, height: 24, indent: 20, endIndent: 20),
@@ -170,6 +180,13 @@ Future<void> _handleMenuAction(
     await navigator.push(
       MaterialPageRoute(
         builder: (_) => const CategoriesScreen(),
+      ),
+    );
+  } else if (value == 'calculator') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => const CalculatorScreen(),
       ),
     );
   } else if (value == 'backup') {

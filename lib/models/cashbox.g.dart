@@ -21,13 +21,14 @@ class CashCountAdapter extends TypeAdapter<CashCount> {
       denominations: (fields[1] as Map).cast<String, int>(),
       expectedAmount: fields[2] as double?,
       note: fields[3] as String?,
+      currencyCode: (fields[4] as String?) ?? 'CUP',
     );
   }
 
   @override
   void write(BinaryWriter writer, CashCount obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class CashCountAdapter extends TypeAdapter<CashCount> {
       ..writeByte(2)
       ..write(obj.expectedAmount)
       ..writeByte(3)
-      ..write(obj.note);
+      ..write(obj.note)
+      ..writeByte(4)
+      ..write(obj.currencyCode);
   }
 
   @override

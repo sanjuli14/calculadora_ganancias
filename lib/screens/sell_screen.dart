@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/payment_methods.dart';
 import 'transfer_accounts_screen.dart';
+import 'calculator_screen.dart';
 
 class _CartItem {
   final Product product;
@@ -129,9 +130,29 @@ class _SellScreenState extends State<SellScreen> {
     final databaseService = Provider.of<DatabaseService>(context);
 
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Registrar Venta',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Abrir calculadora',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CalculatorScreen()),
+            ),
+            icon: const Icon(Icons.calculate_outlined, color: AppColors.navy),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           child: Form(
             key: _formKey,
             child: Column(

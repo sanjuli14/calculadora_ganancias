@@ -12,23 +12,36 @@ class Denomination {
   final String label;
   final double value;
   final bool isCoin;
+  final String currencyCode;
 
-  const Denomination(this.label, this.value, {this.isCoin = false});
+  const Denomination(this.label, this.value,
+      {this.isCoin = false, this.currencyCode = 'CUP'});
 }
 
 const List<Denomination> kBillDenominations = [
-  Denomination('5000', 5000),
-  Denomination('2000', 2000),
-  Denomination('1000', 1000),
-  Denomination('500', 500),
-  Denomination('200', 200),
-  Denomination('100', 100),
-  Denomination('50', 50),
-  Denomination('20', 20),
-  Denomination('10', 10),
+  Denomination('5000', 5000, currencyCode: 'CUP'),
+  Denomination('2000', 2000, currencyCode: 'CUP'),
+  Denomination('1000', 1000, currencyCode: 'CUP'),
+  Denomination('500', 500, currencyCode: 'CUP'),
+  Denomination('200', 200, currencyCode: 'CUP'),
+  Denomination('100', 100, currencyCode: 'CUP'),
+  Denomination('50', 50, currencyCode: 'CUP'),
+  Denomination('20', 20, currencyCode: 'CUP'),
+  Denomination('10', 10, currencyCode: 'CUP'),
+];
+
+const List<Denomination> kUsdBillDenominations = [
+  Denomination('100', 100, currencyCode: 'USD'),
+  Denomination('50', 50, currencyCode: 'USD'),
+  Denomination('20', 20, currencyCode: 'USD'),
+  Denomination('5', 5, currencyCode: 'USD'),
+  Denomination('1', 1, currencyCode: 'USD'),
 ];
 
 const List<Denomination> kCoinDenominations = [];
+
+List<Denomination> _denomsFor(String code) =>
+    code == 'USD' ? kUsdBillDenominations : kBillDenominations;
 
 class CashBoxScreen extends StatefulWidget {
   const CashBoxScreen({super.key});
@@ -38,7 +51,9 @@ class CashBoxScreen extends StatefulWidget {
 }
 
 class _CashBoxScreenState extends State<CashBoxScreen> {
-  late Map<String, int> _counts;
+  String _currency = 'CUP';
+  late Map<String, int> _countsCup;
+  late Map<String, int> _countsUsd;
   final TextEditingController _expectedController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   bool _showExpected = false;
@@ -46,7 +61,8 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
   @override
   void initState() {
     super.initState();
-    _counts = _initialCounts();
+    _countsCup = _initialCountsFor(kBillDenominations);
+    _countsUsd = _initialCountsFor(kUsdBillDenominations);
   }
 
   @override
@@ -56,21 +72,34 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
     super.dispose();
   }
 
-  Map<String, int> _initialCounts() {
+  Map<String, int> _initialCountsFor(List<Denomination> denoms) {
     final map = <String, int>{};
-    for (final d in [...kBillDenominations, ...kCoinDenominations]) {
+    for (final d in denoms) {
       map[d.label] = 0;
     }
     return map;
   }
 
-  double get _total {
+  double get _totalCup {
     double sum = 0;
-    _counts.forEach((label, count) {
+    _countsCup.forEach((label, count) {
       sum += (double.tryParse(label) ?? 0) * count;
     });
     return sum;
   }
+
+  double get _totalUsd {
+    double sum = 0;
+    _countsUsd.forEach((label, count) {
+      sum += (double.tryParse(label) ?? 0) * count;
+    });
+    return sum;
+  }
+
+  Map<String, int> get _activeCounts =>
+      _currency == 'USD' ? _countsUsd : _countsCup;
+
+  List<Denomination> get _activeDenoms => _denomsFor(_currency);
 
   double? get _expected {
     final t = double.tryParse(_expectedController.text);
@@ -79,13 +108,14 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
 
   void _setCount(String label, int value) {
     setState(() {
-      _counts[label] = value < 0 ? 0 : value;
+      _activeCounts[label] = value < 0 ? 0 : value;
     });
   }
 
   void _reset() {
     setState(() {
-      _counts = _initialCounts();
+      _countsCup = _initialCountsFor(kBillDenominations);
+      _countsUsd = _initialCountsFor(kUsdBillDenominations);
       _expectedController.clear();
       _noteController.clear();
       _showExpected = false;
@@ -93,21 +123,41 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
   }
 
   Future<void> _save(DatabaseService db) async {
-    final counts = Map<String, int>.from(_counts)
+    final cupCounts = Map<String, int>.from(_countsCup)
       ..removeWhere((k, v) => v == 0);
-    if (counts.isEmpty) {
+    final usdCounts = Map<String, int>.from(_countsUsd)
+      ..removeWhere((k, v) => v == 0);
+
+    if (cupCounts.isEmpty && usdCounts.isEmpty) {
       _showSnack('Ingresa al menos una cantidad');
       return;
     }
-    final count = CashCount(
-      date: DateTime.now(),
-      denominations: counts,
-      expectedAmount: _showExpected ? _expected : null,
-      note: _noteController.text.trim().isEmpty
-          ? null
-          : _noteController.text.trim(),
-    );
-    await db.addCashCount(count);
+
+    final expected = _showExpected ? _expected : null;
+    final now = DateTime.now();
+    final note = _noteController.text.trim().isEmpty
+        ? null
+        : _noteController.text.trim();
+
+    if (cupCounts.isNotEmpty) {
+      await db.addCashCount(CashCount(
+        date: now,
+        denominations: cupCounts,
+        expectedAmount: expected,
+        note: note,
+        currencyCode: 'CUP',
+      ));
+    }
+    if (usdCounts.isNotEmpty) {
+      await db.addCashCount(CashCount(
+        date: now,
+        denominations: usdCounts,
+        expectedAmount: null,
+        note: note,
+        currencyCode: 'USD',
+      ));
+    }
+
     _reset();
     _showSnack('Caja guardada correctamente');
   }
@@ -142,16 +192,22 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                       ),
                     ),
                     const Text(
-                      'Cuenta el dinero por billetes',
+                      'Cuenta el dinero por billetes (CUP y USD)',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _TotalCard(
-                      total: _total,
+                    _TotalsCards(
+                      totalCup: _totalCup,
+                      totalUsd: _totalUsd,
                       expected: _showExpected ? _expected : null,
+                    ),
+                    const SizedBox(height: 14),
+                    _CurrencySelector(
+                      value: _currency,
+                      onChanged: (v) => setState(() => _currency = v),
                     ),
                   ],
                 ),
@@ -159,11 +215,13 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SectionHeader(title: 'Billetes'),
+                    SectionHeader(
+                      title: 'Billetes (${_currency == 'USD' ? 'USD' : 'CUP'})',
+                    ),
                     const SizedBox(height: 12),
                   ],
                 ),
@@ -179,13 +237,13 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                   childAspectRatio: 1.1,
                 ),
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  final d = kBillDenominations[index];
+                  final d = _activeDenoms[index];
                   return _DenominationTile(
                     denomination: d,
-                    count: _counts[d.label] ?? 0,
+                    count: _activeCounts[d.label] ?? 0,
                     onCountChanged: (v) => _setCount(d.label, v),
                   );
-                }, childCount: kBillDenominations.length),
+                }, childCount: _activeDenoms.length),
               ),
             ),
             SliverToBoxAdapter(
@@ -232,10 +290,10 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                                 controller: _expectedController,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
+                                  decimal: true,
+                                ),
                                 decoration: const InputDecoration(
-                                  labelText: 'Monto esperado',
+                                  labelText: 'Monto esperado (CUP)',
                                   prefixIcon: Icon(Icons.payments_outlined),
                                 ),
                                 onChanged: (_) => setState(() {}),
@@ -423,6 +481,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
             final bv = double.tryParse(b.key) ?? 0;
             return bv.compareTo(av);
           });
+        final isUsd = count.currency == CashCurrency.usd;
         return Padding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
           child: Column(
@@ -442,6 +501,27 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isUsd
+                        ? AppColors.navySoft
+                        : AppColors.turquoiseSoft,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    count.currencyLabel,
+                    style: TextStyle(
+                      color: isUsd ? AppColors.navy : AppColors.turquoise,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),
@@ -470,12 +550,14 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${v >= 1 ? 'CUP' : '¢'} ${formatCents(v)}',
+                          '${isUsd ? 'USD' : 'CUP'} ${formatCents(v)}',
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         Text('× ${e.value}'),
                         Text(
-                          formatMoney(v * e.value),
+                          isUsd
+                              ? formatUsd(v * e.value)
+                              : formatMoney(v * e.value),
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             color: AppColors.navy,
@@ -495,7 +577,9 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   Text(
-                    formatMoney(count.total),
+                    isUsd
+                        ? formatUsd(count.total)
+                        : formatMoney(count.total),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -518,7 +602,8 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                         ),
                       ),
                       Text(
-                        '${count.difference! >= 0 ? '+' : ''}${formatMoney(count.difference!)}',
+                        '${count.difference! >= 0 ? '+' : ''}'
+                        '${isUsd ? formatUsd(count.difference!) : formatMoney(count.difference!)}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -538,83 +623,192 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
   }
 }
 
-class _TotalCard extends StatelessWidget {
-  final double total;
+class _TotalsCards extends StatelessWidget {
+  final double totalCup;
+  final double totalUsd;
   final double? expected;
 
-  const _TotalCard({required this.total, required this.expected});
+  const _TotalsCards({
+    required this.totalCup,
+    required this.totalUsd,
+    required this.expected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final diff = expected == null ? null : total - expected!;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.navy, AppColors.turquoise],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navy.withOpacity(0.3),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+    final diff = expected == null ? null : totalCup - expected!;
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.navy, AppColors.turquoise],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.navy.withOpacity(0.3),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.payments_outlined, color: Colors.white70, size: 18),
-              SizedBox(width: 8),
+              const Row(
+                children: [
+                  Icon(Icons.payments_outlined, color: Colors.white70, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Total contado (CUP)',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
               Text(
-                'Total contado',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                formatMoney(totalCup),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              if (diff != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: diff.abs() < 0.005
+                        ? Colors.white.withOpacity(0.2)
+                        : (diff > 0 ? AppColors.emerald : AppColors.danger),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    diff.abs() < 0.005
+                        ? '✔ Coincide con la caja esperada'
+                        : '${diff > 0 ? 'Sobra' : 'Faltan'} ${formatMoney(diff.abs())}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.navySoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.attach_money,
+                  color: AppColors.navy,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Total contado (USD)',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      formatUsd(totalUsd),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            formatMoney(total),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          if (diff != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: diff.abs() < 0.005
-                    ? Colors.white.withOpacity(0.2)
-                    : (diff > 0 ? AppColors.emerald : AppColors.danger),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                diff.abs() < 0.005
-                    ? '✔ Coincide con la caja esperada'
-                    : '${diff > 0 ? 'Sobra' : 'Faltan'} ${formatMoney(diff.abs())}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _CurrencySelector extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _CurrencySelector({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(
+          value: 'CUP',
+          label: Text('CUP'),
+          icon: Icon(Icons.flag_outlined),
+        ),
+        ButtonSegment(
+          value: 'USD',
+          label: Text('USD'),
+          icon: Icon(Icons.attach_money),
+        ),
+      ],
+      selected: {value},
+      onSelectionChanged: (s) => onChanged(s.first),
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return value == 'USD'
+                ? AppColors.navy
+                : AppColors.turquoise;
+          }
+          return AppColors.surface;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.white;
+          }
+          return AppColors.textPrimary;
+        }),
+        side: WidgetStateProperty.all(const BorderSide(color: AppColors.border)),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }
@@ -634,6 +828,7 @@ class _DenominationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subtotal = denomination.value * count;
+    final isUsd = denomination.currencyCode == 'USD';
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -641,7 +836,9 @@ class _DenominationTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: count > 0
-              ? AppColors.emerald.withOpacity(0.6)
+              ? (isUsd
+                  ? AppColors.navy.withOpacity(0.6)
+                  : AppColors.emerald.withOpacity(0.6))
               : AppColors.border,
         ),
         boxShadow: [
@@ -661,15 +858,15 @@ class _DenominationTile extends StatelessWidget {
               if (denomination.isCoin)
                 const Icon(Icons.circle, color: AppColors.turquoise, size: 13)
               else
-                const Icon(
+                Icon(
                   Icons.rectangle_outlined,
-                  color: AppColors.navy,
+                  color: isUsd ? AppColors.navy : AppColors.navy,
                   size: 13,
                 ),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  'CUP ${formatCents(denomination.value)}',
+                  '${isUsd ? 'USD' : 'CUP'} ${formatCents(denomination.value)}',
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
@@ -715,11 +912,15 @@ class _DenominationTile extends StatelessWidget {
             ],
           ),
           Text(
-            subtotal == 0 ? '—' : formatMoneyCompact(subtotal),
+            subtotal == 0
+                ? '—'
+                : (isUsd
+                    ? formatUsdCompact(subtotal)
+                    : formatMoneyCompact(subtotal)),
             style: TextStyle(
               color: subtotal == 0
                   ? AppColors.textSecondary
-                  : AppColors.emerald,
+                  : (isUsd ? AppColors.navy : AppColors.emerald),
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -732,10 +933,13 @@ class _DenominationTile extends StatelessWidget {
 
   void _editManual(BuildContext context) {
     final controller = TextEditingController(text: '$count');
+    final isUsd = denomination.currencyCode == 'USD';
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Cantidad de CUP ${formatCents(denomination.value)}'),
+        title: Text(
+          'Cantidad de ${isUsd ? 'USD' : 'CUP'} ${formatCents(denomination.value)}',
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -804,6 +1008,7 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(count.date);
+    final isUsd = count.currency == CashCurrency.usd;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -818,17 +1023,19 @@ class _HistoryTile extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppColors.turquoiseSoft,
+            color: isUsd ? AppColors.navySoft : AppColors.turquoiseSoft,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(
-            Icons.account_balance_wallet_outlined,
-            color: AppColors.turquoise,
+          child: Icon(
+            isUsd
+                ? Icons.attach_money
+                : Icons.account_balance_wallet_outlined,
+            color: isUsd ? AppColors.navy : AppColors.turquoise,
             size: 20,
           ),
         ),
         title: Text(
-          formatMoney(count.total),
+          isUsd ? formatUsd(count.total) : formatMoney(count.total),
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
@@ -846,7 +1053,8 @@ class _HistoryTile extends StatelessWidget {
           children: [
             if (count.difference != null)
               Text(
-                '${count.difference! >= 0 ? '+' : ''}${formatMoney(count.difference!)}',
+                '${count.difference! >= 0 ? '+' : ''}'
+                '${isUsd ? formatUsd(count.difference!) : formatMoney(count.difference!)}',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
