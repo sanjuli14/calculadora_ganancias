@@ -95,12 +95,14 @@ jobs:
             exit 0
           fi
           CAPTION=$(printf "🆕 *Cuentas Claras v%s* disponible.\nPresiona para instalarla y tener las últimas novedades." "$VERSION")
-          # chat_id va con \\@ porque en -F un valor que empieza con @ se
-          # interpreta como archivo a subir y fallaría con error (26).
+          # Con -F un valor que empieza con @ se interpreta como archivo a
+          # subir (error 26) y escaparlo con \@ no funciona (curl envía el
+          # backslash literal y Telegram responde "chat not found").
+          # --form-string envía el valor tal cual, sin interpretar @.
           curl -sS -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
-            -F "chat_id=\\@${CHANNEL}" \
-            -F "disable_notification=true" \
+            --form-string "chat_id=@${CHANNEL}" \
+            --form-string "disable_notification=true" \
             -F "document=@build/app/outputs/flutter-apk/app-release.apk;filename=CuentasClaras_${VERSION}.apk" \
-            -F "caption=${CAPTION}" \
-            -F "parse_mode=Markdown"
+            --form-string "caption=${CAPTION}" \
+            --form-string "parse_mode=Markdown"
