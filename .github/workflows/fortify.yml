@@ -95,7 +95,9 @@ jobs:
             exit 0
           fi
           CAPTION=$(printf "🆕 *Cuentas Claras v%s* disponible.\nPresiona para instalarla y tener las últimas novedades." "$VERSION")
-          curl -s -X POST \
+          # --http1.1 y -4 evitan el error (26) de curl 8.x con HTTP/2 al subir
+          # multipart a api.telegram.org (problema conocido). -sS muestra errores.
+          curl -sS --http1.1 -4 -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
             -F "chat_id=${CHANNEL}" \
             -F "disable_notification=true" \
