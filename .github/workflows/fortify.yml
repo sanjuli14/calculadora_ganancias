@@ -83,14 +83,17 @@ jobs:
       #   - Crear un bot con @BotFather y agregarlo como admin del canal.
       #   - Guardar el token del bot como secret "TELEGRAM_BOT_TOKEN"
       #     en Settings → Secrets and variables → Actions.
-      # Si el secret no existe, el paso se salta sin romper el release.
+      # Si el secret no existe, el paso se omite sin romper el release.
       - name: Publicar APK en Telegram
-        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHANNEL: '@cuentas_claras_app'
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          if [ -z "${TELEGRAM_BOT_TOKEN}" ]; then
+            echo "No hay TELEGRAM_BOT_TOKEN configurado. Se omite la publicación."
+            exit 0
+          fi
           CAPTION=$(printf "🆕 *Cuentas Claras v%s* disponible.\nPresiona para instalarla y tener las últimas novedades." "$VERSION")
           curl -s -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
