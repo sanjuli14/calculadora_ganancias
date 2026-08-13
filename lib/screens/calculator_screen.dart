@@ -18,55 +18,84 @@ class CalculatorScreen extends StatefulWidget {
 }
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
-  String _display = '0';
-  String _previous = '';
+  String _expression = '';
+  String _current = '';
   double? _accumulator;
   CalcOp _pending = CalcOp.none;
   bool _justEvaluated = false;
-  double? _memory;
   final List<_CalcEntry> _history = [];
   bool _showHistory = false;
+
+  String get _upperLine {
+    if (_justEvaluated) {
+      return _expression.replaceAll(RegExp(r'\s*$'), '');
+    }
+    final text = '$_expression$_current';
+    if (text.isNotEmpty) return text;
+    return _pending == CalcOp.none ? '' : '0';
+  }
+
+  String get _mainLine {
+    final preview = _livePreview;
+    if (preview != null) return '= $preview';
+    if (_current.isNotEmpty) return _current;
+    return '0';
+  }
+
+  String? get _livePreview {
+    if (_pending == CalcOp.none) return null;
+    if (_current.isEmpty) return null;
+    final right = double.tryParse(_current);
+    if (right == null) return null;
+    final result = _compute(_accumulator ?? 0, right, _pending);
+    if (result.isNaN || result.isInfinite) return 'Error';
+    return _formatNumber(result);
+  }
 
   void _inputDigit(String d) {
     setState(() {
       if (_justEvaluated) {
-        _display = d;
-        _previous = '';
-        _accumulator = null;
-        _pending = CalcOp.none;
-        _justEvaluated = false;
+        _startFresh(d);
         return;
       }
-      if (_display == '0' && d != '.') {
-        _display = d;
-      } else if (_display.replaceAll('-', '').length >= 14) {
+      if (_current == '0' && d != '.') {
+        _current = d;
+      } else if (_current.replaceAll('-', '').length >= 14) {
         return;
       } else {
-        _display = '$_display$d';
+        _current = '$_current$d';
       }
     });
+  }
+
+  void _startFresh(String d) {
+    _expression = '';
+    _current = d;
+    _accumulator = null;
+    _pending = CalcOp.none;
+    _justEvaluated = false;
   }
 
   void _inputDot() {
     setState(() {
       if (_justEvaluated) {
-        _display = '0.';
-        _previous = '';
+        _expression = '';
+        _current = '0.';
         _accumulator = null;
         _pending = CalcOp.none;
         _justEvaluated = false;
         return;
       }
-      if (!_display.contains('.')) {
-        _display = '$_display.';
+      if (!_current.contains('.')) {
+        _current = _current.isEmpty ? '0.' : '$_current.';
       }
     });
   }
 
   void _clearAll() {
     setState(() {
-      _display = '0';
-      _previous = '';
+      _expression = '';
+      _current = '';
       _accumulator = null;
       _pending = CalcOp.none;
       _justEvaluated = false;
@@ -79,69 +108,93 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _clearAll();
         return;
       }
-      if (_display.length <= 1 || (_display.length == 2 && _display.startsWith('-'))) {
-        _display = '0';
-      } else {
-        _display = _display.substring(0, _display.length - 1);
+      if (_current.isEmpty) {
+        if (_pending != CalcOp.none) {
+          _current = _formatNumber(_accumulator!);
+          _expression = '';
+          _accumulator = null;
+          _pending = CalcOp.none;
+        }
+        return;
       }
+      _current = _current.length <= 1
+          ? ''
+          : _current.substring(0, _current.length - 1);
     });
   }
 
   void _toggleSign() {
     setState(() {
-      if (_display == '0') return;
-      if (_display.startsWith('-')) {
-        _display = _display.substring(1);
-      } else {
-        _display = '-$_display';
+      if (_justEvaluated) {
+        _expression = '';
+        _accumulator = null;
+        _pending = CalcOp.none;
+        _justEvaluated = false;
       }
+      if (_current.isEmpty || _current == '0') return;
+      _current = _current.startsWith('-')
+          ? _current.substring(1)
+          : '-$_current';
     });
   }
 
   void _applyPercent() {
-    final current = double.tryParse(_display) ?? 0;
+    final current = double.tryParse(_current);
+    if (current == null) return;
     setState(() {
       if (_accumulator != null) {
-        final base = _accumulator!;
-        final percentValue = base * current / 100.0;
-        _display = _formatNumber(percentValue);
-        _justEvaluated = true;
+        _current = _formatNumber(_accumulator! * current / 100.0);
       } else {
-        _display = _formatNumber(current / 100.0);
+        _current = _formatNumber(current / 100.0);
       }
     });
   }
 
   void _setOp(CalcOp op) {
-    final current = double.tryParse(_display) ?? 0;
     setState(() {
-      if (_accumulator != null && _pending != CalcOp.none && !_justEvaluated) {
-        final result = _compute(_accumulator!, current, _pending);
-        _accumulator = result;
-        _display = _formatNumber(result);
-      } else {
-        _accumulator = current;
+      if (_pending != CalcOp.none) {
+        if (_current.isNotEmpty) {
+          final right = double.tryParse(_current) ?? 0;
+          final result = _compute(_accumulator!, right, _pending);
+          _accumulator = result;
+          _expression = '${_formatNumber(result)} ${_opSymbol(op)} ';
+        } else {
+          _expression = '${_formatNumber(_accumulator!)} ${_opSymbol(op)} ';
+        }
+        _current = '';
+        _pending = op;
+        _justEvaluated = false;
+        return;
       }
+      if (_justEvaluated) {
+        _accumulator = double.tryParse(_current) ?? 0;
+        _expression = '${_formatNumber(_accumulator!)} ${_opSymbol(op)} ';
+        _current = '';
+        _pending = op;
+        _justEvaluated = false;
+        return;
+      }
+      if (_current.isEmpty) return;
+      _accumulator = double.tryParse(_current) ?? 0;
+      _expression = '${_formatNumber(_accumulator!)} ${_opSymbol(op)} ';
+      _current = '';
       _pending = op;
-      _previous = '$_display ${_opSymbol(op)}';
       _justEvaluated = false;
-      _display = '0';
     });
   }
 
   void _equals() {
-    final current = double.tryParse(_display) ?? 0;
-    if (_accumulator == null || _pending == CalcOp.none) return;
-    final result = _compute(_accumulator!, current, _pending);
-    final expression = '$_previous ${_formatNumber(current)}';
+    if (_pending == CalcOp.none) return;
+    final right = double.tryParse(_current) ?? 0;
+    final result = _compute(_accumulator!, right, _pending);
+    final resultStr = _formatNumber(result);
+    final expressionText =
+        '${_formatNumber(_accumulator!)} ${_opSymbol(_pending)} ${_formatNumber(right)}';
     setState(() {
-      _history.insert(
-        0,
-        _CalcEntry(expression, _formatNumber(result)),
-      );
+      _history.insert(0, _CalcEntry(expressionText, resultStr));
       if (_history.length > 30) _history.removeLast();
-      _display = _formatNumber(result);
-      _previous = expression;
+      _expression = '$expressionText =';
+      _current = resultStr;
       _accumulator = null;
       _pending = CalcOp.none;
       _justEvaluated = true;
@@ -188,36 +241,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return isNeg ? '-$s' : s;
     }
     final s = abs.toStringAsFixed(6);
-    final trimmed = s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+    final trimmed = s
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
     return isNeg ? '-$trimmed' : trimmed;
-  }
-
-  void _memoryAdd() {
-    final current = double.tryParse(_display) ?? 0;
-    setState(() {
-      _memory = (_memory ?? 0) + current;
-      _justEvaluated = true;
-    });
-  }
-
-  void _memorySub() {
-    final current = double.tryParse(_display) ?? 0;
-    setState(() {
-      _memory = (_memory ?? 0) - current;
-      _justEvaluated = true;
-    });
-  }
-
-  void _memoryRecall() {
-    if (_memory == null) return;
-    setState(() {
-      _display = _formatNumber(_memory!);
-      _justEvaluated = true;
-    });
-  }
-
-  void _memoryClear() {
-    setState(() => _memory = null);
   }
 
   @override
@@ -245,19 +272,23 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               children: [
                 Icon(
                   _showHistory ? Icons.calculate_outlined : Icons.history,
-                  color: _showHistory ? AppColors.navy : AppColors.textSecondary,
+                  color: _showHistory
+                      ? AppColors.navy
+                      : AppColors.textSecondary,
                 ),
                 if (_history.isNotEmpty && !_showHistory)
                   Positioned(
                     right: -4,
                     top: -4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
                         color: AppColors.danger,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      constraints: const BoxConstraints(
+                          minWidth: 16, minHeight: 16),
                       child: Text(
                         '${_history.length}',
                         textAlign: TextAlign.center,
@@ -277,14 +308,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _MemoryBadge(memory: _memory),
             Expanded(
               child: _showHistory
                   ? _HistoryView(
                       history: _history,
                       onTap: (entry) {
                         setState(() {
-                          _display = entry.result;
+                          _current = entry.result;
+                          _expression = '';
+                          _accumulator = null;
+                          _pending = CalcOp.none;
                           _justEvaluated = true;
                           _showHistory = false;
                         });
@@ -292,8 +325,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       onClear: () => setState(() => _history.clear()),
                     )
                   : _Keypad(
-                      display: _display,
-                      previous: _previous,
+                      upper: _upperLine,
+                      main: _mainLine,
                       onDigit: _inputDigit,
                       onDot: _inputDot,
                       onClear: _clearAll,
@@ -302,11 +335,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       onEquals: _equals,
                       onPercent: _applyPercent,
                       onToggleSign: _toggleSign,
-                      onMPlus: _memoryAdd,
-                      onMSub: _memorySub,
-                      onMR: _memoryRecall,
-                      onMC: _memoryClear,
-                      memoryActive: _memory != null && _memory != 0,
                     ),
             ),
           ],
@@ -316,40 +344,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 }
 
-class _MemoryBadge extends StatelessWidget {
-  final double? memory;
-  const _MemoryBadge({required this.memory});
-
-  @override
-  Widget build(BuildContext context) {
-    if (memory == null) return const SizedBox.shrink();
-    final m = memory!;
-    final digits = m == m.roundToDouble() ? 0 : 2;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      color: AppColors.turquoiseSoft,
-      child: Row(
-        children: [
-          const Icon(Icons.bookmarks_outlined, size: 14, color: AppColors.turquoise),
-          const SizedBox(width: 6),
-          Text(
-            'Memoria: ${m.toStringAsFixed(digits)}',
-            style: const TextStyle(
-              color: AppColors.turquoise,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _Keypad extends StatelessWidget {
-  final String display;
-  final String previous;
+  final String upper;
+  final String main;
   final ValueChanged<String> onDigit;
   final VoidCallback onDot;
   final VoidCallback onClear;
@@ -358,15 +355,10 @@ class _Keypad extends StatelessWidget {
   final VoidCallback onEquals;
   final VoidCallback onPercent;
   final VoidCallback onToggleSign;
-  final VoidCallback onMPlus;
-  final VoidCallback onMSub;
-  final VoidCallback onMR;
-  final VoidCallback onMC;
-  final bool memoryActive;
 
   const _Keypad({
-    required this.display,
-    required this.previous,
+    required this.upper,
+    required this.main,
     required this.onDigit,
     required this.onDot,
     required this.onClear,
@@ -375,64 +367,52 @@ class _Keypad extends StatelessWidget {
     required this.onEquals,
     required this.onPercent,
     required this.onToggleSign,
-    required this.onMPlus,
-    required this.onMSub,
-    required this.onMR,
-    required this.onMC,
-    required this.memoryActive,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          margin: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.navy, AppColors.turquoise],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.navy.withOpacity(0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                previous,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: Text(
-                  display,
-                  maxLines: 1,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 44,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -1,
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+            alignment: Alignment.centerRight,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 120),
+                  child: Text(
+                    upper,
+                    key: ValueKey(upper),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    main,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: AppColors.navy,
+                      fontSize: 52,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -441,45 +421,83 @@ class _Keypad extends StatelessWidget {
             child: Column(
               children: [
                 _Row(children: [
-                  _MemBtn(label: 'MC', onTap: onMC, active: memoryActive),
-                  _MemBtn(label: 'MR', onTap: memoryActive ? onMR : null, active: memoryActive),
-                  _MemBtn(label: 'M-', onTap: onMSub, active: memoryActive),
-                  _MemBtn(label: 'M+', onTap: onMPlus, active: memoryActive),
-                ]),
-                const SizedBox(height: 8),
-                _Row(children: [
-                  _Key(label: 'C', onTap: onClear, color: AppColors.danger, fg: Colors.white),
-                  _Key(label: '⌫', onTap: onBackspace, color: AppColors.warningSoft, fg: AppColors.warning),
-                  _Key(label: '%', onTap: onPercent, color: AppColors.warningSoft, fg: AppColors.warning),
-                  _Key(label: '÷', onTap: () => onOp(CalcOp.div), color: AppColors.navy, fg: Colors.white, big: true),
+                  _Key(
+                    label: 'C',
+                    onTap: onClear,
+                    color: AppColors.surface,
+                    fg: AppColors.danger,
+                  ),
+                  _Key(
+                    label: '⌫',
+                    onTap: onBackspace,
+                    color: AppColors.surface,
+                    fg: AppColors.textSecondary,
+                  ),
+                  _Key(
+                    label: '%',
+                    onTap: onPercent,
+                    color: AppColors.surface,
+                    fg: AppColors.textPrimary,
+                  ),
+                  _Key(
+                    label: '÷',
+                    onTap: () => onOp(CalcOp.div),
+                    color: AppColors.navy,
+                    fg: Colors.white,
+                    big: true,
+                  ),
                 ]),
                 const SizedBox(height: 8),
                 _Row(children: [
                   _Key(label: '7', onTap: () => onDigit('7')),
                   _Key(label: '8', onTap: () => onDigit('8')),
                   _Key(label: '9', onTap: () => onDigit('9')),
-                  _Key(label: '×', onTap: () => onOp(CalcOp.mul), color: AppColors.navy, fg: Colors.white, big: true),
+                  _Key(
+                    label: '×',
+                    onTap: () => onOp(CalcOp.mul),
+                    color: AppColors.navy,
+                    fg: Colors.white,
+                    big: true,
+                  ),
                 ]),
                 const SizedBox(height: 8),
                 _Row(children: [
                   _Key(label: '4', onTap: () => onDigit('4')),
                   _Key(label: '5', onTap: () => onDigit('5')),
                   _Key(label: '6', onTap: () => onDigit('6')),
-                  _Key(label: '−', onTap: () => onOp(CalcOp.sub), color: AppColors.navy, fg: Colors.white, big: true),
+                  _Key(
+                    label: '−',
+                    onTap: () => onOp(CalcOp.sub),
+                    color: AppColors.navy,
+                    fg: Colors.white,
+                    big: true,
+                  ),
                 ]),
                 const SizedBox(height: 8),
                 _Row(children: [
                   _Key(label: '1', onTap: () => onDigit('1')),
                   _Key(label: '2', onTap: () => onDigit('2')),
                   _Key(label: '3', onTap: () => onDigit('3')),
-                  _Key(label: '+', onTap: () => onOp(CalcOp.add), color: AppColors.navy, fg: Colors.white, big: true),
+                  _Key(
+                    label: '+',
+                    onTap: () => onOp(CalcOp.add),
+                    color: AppColors.navy,
+                    fg: Colors.white,
+                    big: true,
+                  ),
                 ]),
                 const SizedBox(height: 8),
                 _Row(children: [
                   _Key(label: '±', onTap: onToggleSign),
                   _Key(label: '0', onTap: () => onDigit('0')),
                   _Key(label: '.', onTap: onDot),
-                  _Key(label: '=', onTap: onEquals, color: AppColors.emerald, fg: Colors.white, big: true),
+                  _Key(
+                    label: '=',
+                    onTap: onEquals,
+                    color: AppColors.emerald,
+                    fg: Colors.white,
+                    big: true,
+                  ),
                 ]),
               ],
             ),
@@ -537,53 +555,13 @@ class _Key extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: color == null ? Border.all(color: AppColors.border) : null,
+            border: Border.all(color: AppColors.border),
           ),
           child: Text(
             label,
             style: TextStyle(
               color: fg ?? AppColors.textPrimary,
               fontSize: big ? 26 : 20,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MemBtn extends StatelessWidget {
-  final String label;
-  final VoidCallback? onTap;
-  final bool active;
-
-  const _MemBtn({required this.label, required this.onTap, required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return Material(
-      color: active ? AppColors.turquoiseSoft : AppColors.surface,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: active ? AppColors.turquoise : AppColors.border,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: enabled
-                  ? (active ? AppColors.turquoise : AppColors.textPrimary)
-                  : AppColors.textSecondary.withOpacity(0.6),
-              fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -641,7 +619,8 @@ class _HistoryView extends StatelessWidget {
               const Spacer(),
               TextButton.icon(
                 onPressed: onClear,
-                icon: const Icon(Icons.delete_sweep_outlined, size: 16, color: AppColors.danger),
+                icon: const Icon(Icons.delete_sweep_outlined,
+                    size: 16, color: AppColors.danger),
                 label: const Text(
                   'Limpiar',
                   style: TextStyle(color: AppColors.danger),
@@ -654,7 +633,8 @@ class _HistoryView extends StatelessWidget {
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             itemCount: history.length,
-            separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.border),
+            separatorBuilder: (_, _) =>
+                const Divider(height: 1, color: AppColors.border),
             itemBuilder: (context, i) {
               final e = history[i];
               return ListTile(

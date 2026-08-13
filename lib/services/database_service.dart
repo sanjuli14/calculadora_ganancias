@@ -12,13 +12,14 @@ import '../models/cashbox.dart';
 import '../models/debt.dart';
 import '../models/payment.dart';
 import '../models/transfer_account.dart';
+import '../models/expense.dart';
 
 class DatabaseService {
   // Versión del esquema de la base de datos.
   // Aumenta este número cuando agregues/cambies campos de un modelo y deja
   // la lógica de migración en _migrate(). Así las actualizaciones nunca
   // pierden los datos del usuario.
-  static const int _schemaVersion = 2;
+  static const int _schemaVersion = 3;
 
   late Box<Product> _productsBox;
   late Box<Sale> _salesBox;
@@ -26,6 +27,7 @@ class DatabaseService {
   late Box<Debt> _debtsBox;
   late Box<TransferAccount> _transferAccountsBox;
   late Box<String> _categoriesBox;
+  late Box<Expense> _expensesBox;
   late Box _metaBox;
 
   Box<Product> get productsBox => _productsBox;
@@ -34,6 +36,7 @@ class DatabaseService {
   Box<Debt> get debtsBox => _debtsBox;
   Box<TransferAccount> get transferAccountsBox => _transferAccountsBox;
   Box<String> get categoriesBox => _categoriesBox;
+  Box<Expense> get expensesBox => _expensesBox;
 
   bool get onboardingSeen => _metaBox.get('onboarding_seen', defaultValue: false) as bool;
 
@@ -99,6 +102,7 @@ class DatabaseService {
     Hive.registerAdapter(DebtAdapter());
     Hive.registerAdapter(PaymentAdapter());
     Hive.registerAdapter(TransferAccountAdapter());
+    Hive.registerAdapter(ExpenseAdapter());
 
     // Abre la box de metadatos (versión de esquema) de forma segura.
     try {
@@ -116,6 +120,7 @@ class DatabaseService {
     _debtsBox = await _openBoxSafely<Debt>('debts');
     _transferAccountsBox = await _openBoxSafely<TransferAccount>('transfer_accounts');
     _categoriesBox = await _openBoxSafely<String>('categories');
+    _expensesBox = await _openBoxSafely<Expense>('expenses');
 
     await _migrate();
   }
@@ -140,7 +145,10 @@ class DatabaseService {
     // La box se abre en init(), por lo que en esta versión no hay
     // datos existentes que migrar; solo se actualiza el número de esquema.
     //
-    // if (current < 3) {
+    // v3: se agregó la box de gastos (expenses). Igual que en v2, la box
+    // se abre en init() y no hay datos previos que migrar.
+    //
+    // if (current < 4) {
     //   // nueva lógica aquí
     // }
 
@@ -155,6 +163,7 @@ class DatabaseService {
   ValueListenable<Box<TransferAccount>> get transferAccountsListenable =>
       _transferAccountsBox.listenable();
   ValueListenable<Box<String>> get categoriesListenable => _categoriesBox.listenable();
+  ValueListenable<Box<Expense>> get expensesListenable => _expensesBox.listenable();
 
   // Product CRUD
   Future<void> addProduct(Product product) async {
@@ -259,6 +268,21 @@ class DatabaseService {
     return getSalesBetween(startOfMonth, endOfMonth);
   }
 
+  // Get today's sales only
+  List<Sale> getTodaySales() {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    return getSalesBetween(start, end);
+  }
+
+  // Get sales of a specific day (local midnight to 23:59).
+  List<Sale> getSalesForDay(DateTime day) {
+    final start = DateTime(day.year, day.month, day.day);
+    final end = DateTime(day.year, day.month, day.day, 23, 59, 59);
+    return getSalesBetween(start, end);
+  }
+
   // Calculate summary from sales list
   Map<String, double> calculateSummary(List<Sale> sales) {
     double totalSales = 0;
@@ -321,6 +345,42 @@ class DatabaseService {
 
   List<CashCount> getCashCounts() {
     return _cashboxBox.values.toList().cast<CashCount>();
+  }
+
+  // ---- Gastos (independientes de las ventas) ----
+
+  Future<void> addExpense(Expense expense) async {
+    await _expensesBox.add(expense);
+  }
+
+  Future<void> updateExpense(dynamic key, Expense expense) async {
+    await _expensesBox.put(key, expense);
+  }
+
+  Future<void> deleteExpense(dynamic key) async {
+    await _expensesBox.delete(key);
+  }
+
+  List<Expense> getExpenses() {
+    return _expensesBox.values.toList().cast<Expense>();
+  }
+
+  double getTotalExpenses() {
+    double total = 0;
+    for (final e in _expensesBox.values) {
+      total += e.amount;
+    }
+    return total;
+  }
+
+  double getMonthExpenses() {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1);
+    double total = 0;
+    for (final e in _expensesBox.values) {
+      if (!e.date.isBefore(start)) total += e.amount;
+    }
+    return total;
   }
 
   // ---- Cuentas por cobrar (fiados) ----
@@ -477,6 +537,7 @@ class DatabaseService {
               })
           .toList(),
       'categories': _categoriesBox.values.toList().cast<String>(),
+      'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
       'totalInvestment': totalInvestment,
       'date': DateTime.now().toIso8601String(),
     };
@@ -509,6 +570,7 @@ class DatabaseService {
               })
           .toList(),
       'categories': _categoriesBox.values.toList().cast<String>(),
+      'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
       'totalInvestment': totalInvestment,
       'date': DateTime.now().toIso8601String(),
     };
@@ -621,6 +683,7 @@ class DatabaseService {
       await _debtsBox.clear();
       await _transferAccountsBox.clear();
       await _categoriesBox.clear();
+      await _expensesBox.clear();
 
       final products = (backup['products'] as List)
           .map((i) => Product.fromJson(i))
@@ -665,6 +728,18 @@ class DatabaseService {
             .toList();
         if (categories.isNotEmpty) {
           await _categoriesBox.addAll(categories);
+        }
+      }
+
+      // Gastos (opcional: los backups hechos con la app de producción
+      // anterior no traen esta sección).
+      if (backup['expenses'] is List) {
+        final expenses = (backup['expenses'] as List)
+            .whereType<Map>()
+            .map((i) => Expense.fromJson(Map<String, dynamic>.from(i)))
+            .toList();
+        if (expenses.isNotEmpty) {
+          await _expensesBox.addAll(expenses);
         }
       }
 

@@ -1,44 +1,41 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'cashbox.dart';
+part of 'expense.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class CashCountAdapter extends TypeAdapter<CashCount> {
+class ExpenseAdapter extends TypeAdapter<Expense> {
   @override
-  final int typeId = 2;
+  final int typeId = 6;
 
   @override
-  CashCount read(BinaryReader reader) {
+  Expense read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return CashCount(
-      date: fields[0] as DateTime,
-      denominations: (fields[1] as Map).cast<String, int>(),
-      expectedAmount: fields[2] as double?,
-      note: fields[3] as String?,
-      currencyCode: fields[4] as String,
+    return Expense(
+      name: fields[0] as String,
+      description: fields[1] as String,
+      amount: fields[2] as double,
+      date: fields[3] as DateTime,
     );
   }
 
   @override
-  void write(BinaryWriter writer, CashCount obj) {
+  void write(BinaryWriter writer, Expense obj) {
     writer
-      ..writeByte(5)
-      ..writeByte(0)
-      ..write(obj.date)
-      ..writeByte(1)
-      ..write(obj.denominations)
-      ..writeByte(2)
-      ..write(obj.expectedAmount)
-      ..writeByte(3)
-      ..write(obj.note)
       ..writeByte(4)
-      ..write(obj.currencyCode);
+      ..writeByte(0)
+      ..write(obj.name)
+      ..writeByte(1)
+      ..write(obj.description)
+      ..writeByte(2)
+      ..write(obj.amount)
+      ..writeByte(3)
+      ..write(obj.date);
   }
 
   @override
@@ -47,7 +44,7 @@ class CashCountAdapter extends TypeAdapter<CashCount> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is CashCountAdapter &&
+      other is ExpenseAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

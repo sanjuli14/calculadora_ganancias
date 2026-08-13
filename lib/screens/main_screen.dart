@@ -12,6 +12,8 @@ import 'cashbox_screen.dart';
 import 'transfer_accounts_screen.dart';
 import 'categories_screen.dart';
 import 'calculator_screen.dart';
+import 'daily_inventory_screen.dart';
+import 'expenses_screen.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -60,6 +62,29 @@ class _MainScreenBody extends StatelessWidget {
             children: [
               const _DrawerHeader(),
               const _DrawerSectionLabel('Cuentas'),
+              _DrawerItem(
+                icon: Icons.today_outlined,
+                iconColor: AppColors.emerald,
+                label: 'Inventario Diario',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(
+                    messenger,
+                    db,
+                    context,
+                    'daily_inventory',
+                  );
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.money_off_outlined,
+                iconColor: AppColors.warning,
+                label: 'Gastos',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'expenses');
+                },
+              ),
               _DrawerItem(
                 icon: Icons.account_balance_outlined,
                 iconColor: AppColors.navy,
@@ -187,6 +212,20 @@ Future<void> _handleMenuAction(
     await navigator.push(
       MaterialPageRoute(
         builder: (_) => const CalculatorScreen(),
+      ),
+    );
+  } else if (value == 'daily_inventory') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => const DailyInventoryScreen(),
+      ),
+    );
+  } else if (value == 'expenses') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => const ExpensesScreen(),
       ),
     );
   } else if (value == 'backup') {
@@ -411,7 +450,7 @@ class _DrawerFooter extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
       child: Text(
-        'Cuentas Claras v1.3.0',
+        'Cuentas Claras v1.5.0',
         style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
       ),
     );

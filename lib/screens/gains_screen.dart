@@ -33,6 +33,8 @@ class _GainsScreenState extends State<GainsScreen> {
 
   List<Sale> _filterSales(DatabaseService db, List<Sale> sales) {
     switch (_period) {
+      case 'day':
+        return db.getTodaySales();
       case 'week':
         return db.getWeeklySalesCustom(DateTime.friday);
       case 'month':
@@ -364,6 +366,8 @@ class _PeriodSelector extends StatelessWidget {
     return Row(
       children: [
         _periodChip('all', 'Todo'),
+        const SizedBox(width: 8),
+        _periodChip('day', 'Hoy'),
         const SizedBox(width: 8),
         _periodChip('month', 'Este mes'),
         const SizedBox(width: 8),

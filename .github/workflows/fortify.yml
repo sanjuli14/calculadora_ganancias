@@ -76,3 +76,26 @@ jobs:
           files: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publica el APK en el canal de Telegram para que los clientes lo
+      # descarguen e instalen sin pasar por GitHub.
+      # Requiere:
+      #   - Crear un bot con @BotFather y agregarlo como admin del canal.
+      #   - Guardar el token del bot como secret "TELEGRAM_BOT_TOKEN"
+      #     en Settings → Secrets and variables → Actions.
+      # Si el secret no existe, el paso se salta sin romper el release.
+      - name: Publicar APK en Telegram
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHANNEL: '@cuentas_claras_app'
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          CAPTION=$(printf "🆕 *Cuentas Claras v%s* disponible.\nPresiona para instalarla y tener las últimas novedades." "$VERSION")
+          curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+            -F "chat_id=${CHANNEL}" \
+            -F "disable_notification=true" \
+            -F "document=@build/app/outputs/flutter-apk/app-release.apk;filename=CuentasClaras_${VERSION}.apk" \
+            -F "caption=${CAPTION}" \
+            -F "parse_mode=Markdown"
