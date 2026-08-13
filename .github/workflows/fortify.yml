@@ -87,7 +87,7 @@ jobs:
       - name: Publicar APK en Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHANNEL: '@cuentas_claras_app'
+          CHANNEL: cuentas_claras_app
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           if [ -z "${TELEGRAM_BOT_TOKEN}" ]; then
@@ -95,11 +95,11 @@ jobs:
             exit 0
           fi
           CAPTION=$(printf "🆕 *Cuentas Claras v%s* disponible.\nPresiona para instalarla y tener las últimas novedades." "$VERSION")
-          # --http1.1 y -4 evitan el error (26) de curl 8.x con HTTP/2 al subir
-          # multipart a api.telegram.org (problema conocido). -sS muestra errores.
-          curl -sS --http1.1 -4 -X POST \
+          # chat_id va con \\@ porque en -F un valor que empieza con @ se
+          # interpreta como archivo a subir y fallaría con error (26).
+          curl -sS -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
-            -F "chat_id=${CHANNEL}" \
+            -F "chat_id=\\@${CHANNEL}" \
             -F "disable_notification=true" \
             -F "document=@build/app/outputs/flutter-apk/app-release.apk;filename=CuentasClaras_${VERSION}.apk" \
             -F "caption=${CAPTION}" \
