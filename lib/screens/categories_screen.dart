@@ -84,7 +84,11 @@ class CategoriesScreen extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, DatabaseService db, String category) {
+  void _confirmDelete(
+    BuildContext context,
+    DatabaseService db,
+    String category,
+  ) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -103,7 +107,7 @@ class CategoriesScreen extends StatelessWidget {
               await db.deleteCategory(category);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
             },
-            child: const Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+            child: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -129,14 +133,14 @@ class _EmptyState extends StatelessWidget {
                 color: AppColors.navySoft,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.category_outlined,
                 size: 44,
                 color: AppColors.navy,
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Aún no tienes categorías',
               style: TextStyle(
                 color: AppColors.textPrimary,
@@ -145,7 +149,7 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Crea categorías y luego asigna cada producto a una de ellas.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
@@ -181,13 +185,17 @@ class _CategoryCard extends StatelessWidget {
               color: AppColors.navySoft,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.category_outlined, color: AppColors.navy, size: 20),
+            child: Icon(
+              Icons.category_outlined,
+              color: AppColors.navy,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               name,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -196,7 +204,7 @@ class _CategoryCard extends StatelessWidget {
           ),
           IconButton(
             onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 22),
+            icon: Icon(Icons.delete_outline, color: AppColors.danger, size: 22),
             tooltip: 'Eliminar',
           ),
         ],

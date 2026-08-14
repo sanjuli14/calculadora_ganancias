@@ -68,10 +68,14 @@ class _GainsScreenState extends State<GainsScreen> {
                         color: AppColors.emeraldSoft,
                         borderRadius: BorderRadius.circular(28),
                       ),
-                      child: const Icon(Icons.trending_up, size: 44, color: AppColors.emerald),
+                      child: Icon(
+                        Icons.trending_up,
+                        size: 44,
+                        color: AppColors.emerald,
+                      ),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       'No hay ventas registradas aún',
                       style: TextStyle(
                         color: AppColors.textPrimary,
@@ -80,7 +84,7 @@ class _GainsScreenState extends State<GainsScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Registra tu primera venta desde el tab Vender',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
@@ -100,7 +104,7 @@ class _GainsScreenState extends State<GainsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Ganancias',
                           style: TextStyle(
                             color: AppColors.textPrimary,
@@ -118,7 +122,7 @@ class _GainsScreenState extends State<GainsScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
+                            gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [AppColors.navy, AppColors.emerald],
@@ -137,11 +141,19 @@ class _GainsScreenState extends State<GainsScreen> {
                             children: [
                               const Row(
                                 children: [
-                                  Icon(Icons.savings_outlined, color: Colors.white70, size: 18),
+                                  Icon(
+                                    Icons.savings_outlined,
+                                    color: Colors.white70,
+                                    size: 18,
+                                  ),
                                   SizedBox(width: 8),
                                   Text(
                                     'Ganancia del período',
-                                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -158,9 +170,19 @@ class _GainsScreenState extends State<GainsScreen> {
                               const SizedBox(height: 16),
                               Row(
                                 children: [
-                                  _HeaderStat(label: 'Ventas', value: '${sales.length}'),
-                                  Container(width: 1, height: 32, color: Colors.white24),
-                                  _HeaderStat(label: 'Ingresos', value: formatMoney(totalRevenue)),
+                                  _HeaderStat(
+                                    label: 'Ventas',
+                                    value: '${sales.length}',
+                                  ),
+                                  Container(
+                                    width: 1,
+                                    height: 32,
+                                    color: Colors.white24,
+                                  ),
+                                  _HeaderStat(
+                                    label: 'Ingresos',
+                                    value: formatMoney(totalRevenue),
+                                  ),
                                 ],
                               ),
                             ],
@@ -181,7 +203,7 @@ class _GainsScreenState extends State<GainsScreen> {
                           sales.isEmpty
                               ? 'Sin ventas en este período'
                               : 'Historial de ventas (${sales.length})',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
@@ -195,16 +217,18 @@ class _GainsScreenState extends State<GainsScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final sale = sales[sales.length - 1 - index];
-                        return _SaleTile(
-                          sale: sale,
-                          onDelete: () => _confirmDelete(context, databaseService, box, sales.length - 1 - index),
-                        );
-                      },
-                      childCount: sales.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final sale = sales[sales.length - 1 - index];
+                      return _SaleTile(
+                        sale: sale,
+                        onDelete: () => _confirmDelete(
+                          context,
+                          databaseService,
+                          box,
+                          sales.length - 1 - index,
+                        ),
+                      );
+                    }, childCount: sales.length),
                   ),
                 ),
               ],
@@ -226,7 +250,9 @@ class _GainsScreenState extends State<GainsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar eliminación'),
-        content: const Text('¿Eliminar esta venta? El stock del producto será restaurado.'),
+        content: const Text(
+          '¿Eliminar esta venta? El stock del producto será restaurado.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -234,7 +260,7 @@ class _GainsScreenState extends State<GainsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+            child: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -242,9 +268,9 @@ class _GainsScreenState extends State<GainsScreen> {
     if (confirmed == true) {
       await db.deleteSale(key);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Venta eliminada')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Venta eliminada')));
       }
     }
   }
@@ -294,9 +320,13 @@ class _DollarCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.attach_money_outlined, color: AppColors.navy, size: 20),
+              Icon(
+                Icons.attach_money_outlined,
+                color: AppColors.navy,
+                size: 20,
+              ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Equivalente en USD',
                   style: TextStyle(
@@ -317,7 +347,9 @@ class _DollarCard extends StatelessWidget {
             TextField(
               controller: controller,
               onChanged: (_) => onChanged(),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Tipo de cambio (1 USD en CUP)',
                 hintText: 'Ej: 120',
@@ -329,10 +361,20 @@ class _DollarCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Total vendido', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  Text(
+                    'Total vendido',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
                   Text(
                     '\$${usdRevenue.toStringAsFixed(2)}',
-                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 16),
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -340,10 +382,20 @@ class _DollarCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Ganancias', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  Text(
+                    'Ganancias',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
                   Text(
                     '\$${usdProfit.toStringAsFixed(2)}',
-                    style: const TextStyle(color: AppColors.emerald, fontWeight: FontWeight.w800, fontSize: 16),
+                    style: TextStyle(
+                      color: AppColors.emerald,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -387,7 +439,9 @@ class _PeriodSelector extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? AppColors.navy : AppColors.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: selected ? AppColors.navy : AppColors.border),
+            border: Border.all(
+              color: selected ? AppColors.navy : AppColors.border,
+            ),
           ),
           child: Text(
             label,
@@ -418,9 +472,16 @@ class _HeaderStat extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
         ],
       ),
     );
@@ -460,12 +521,18 @@ class _SaleTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: sale.isOwnExpense ? AppColors.warningSoft : AppColors.emeraldSoft,
+                  color: sale.isOwnExpense
+                      ? AppColors.warningSoft
+                      : AppColors.emeraldSoft,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
-                  sale.isOwnExpense ? Icons.person_outline : Icons.receipt_long_outlined,
-                  color: sale.isOwnExpense ? AppColors.warning : AppColors.emerald,
+                  sale.isOwnExpense
+                      ? Icons.person_outline
+                      : Icons.receipt_long_outlined,
+                  color: sale.isOwnExpense
+                      ? AppColors.warning
+                      : AppColors.emerald,
                   size: 22,
                 ),
               ),
@@ -476,7 +543,7 @@ class _SaleTile extends StatelessWidget {
                   children: [
                     Text(
                       sale.productName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
@@ -487,14 +554,21 @@ class _SaleTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '$dateStr • ${sale.quantity} u × ${formatMoney(sale.unitSellPrice)}',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+                icon: Icon(
+                  Icons.delete_outline,
+                  color: AppColors.danger,
+                  size: 20,
+                ),
               ),
             ],
           ),
@@ -504,18 +578,28 @@ class _SaleTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: sale.isOwnExpense ? AppColors.warningSoft : AppColors.navySoft,
+                  color: sale.isOwnExpense
+                      ? AppColors.warningSoft
+                      : AppColors.navySoft,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(PaymentMethod.icon(sale.paymentMethod), size: 11, color: sale.isOwnExpense ? AppColors.warning : AppColors.navy),
+                    Icon(
+                      PaymentMethod.icon(sale.paymentMethod),
+                      size: 11,
+                      color: sale.isOwnExpense
+                          ? AppColors.warning
+                          : AppColors.navy,
+                    ),
                     const SizedBox(width: 3),
                     Text(
                       PaymentMethod.label(sale.paymentMethod),
                       style: TextStyle(
-                        color: sale.isOwnExpense ? AppColors.warning : AppColors.navy,
+                        color: sale.isOwnExpense
+                            ? AppColors.warning
+                            : AppColors.navy,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -527,21 +611,25 @@ class _SaleTile extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   'comisión ${formatMoney(sale.commission)}',
-                  style: const TextStyle(color: AppColors.danger, fontSize: 11),
+                  style: TextStyle(color: AppColors.danger, fontSize: 11),
                 ),
               ],
-              if (sale.paymentMethod == 'dolar' && sale.exchangeRate != null) ...[
+              if (sale.paymentMethod == 'dolar' &&
+                  sale.exchangeRate != null) ...[
                 const SizedBox(width: 6),
                 Text(
                   'cambio ${formatMoney(sale.exchangeRate!)}',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
                 ),
               ],
               const Spacer(),
               if (sale.isOwnExpense)
                 Text(
                   '-${formatMoney(sale.ownExpenseCost)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.warning,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -550,7 +638,7 @@ class _SaleTile extends StatelessWidget {
               else
                 Text(
                   '+${formatMoney(sale.total)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -564,7 +652,7 @@ class _SaleTile extends StatelessWidget {
             child: sale.isOwnExpense
                 ? Text(
                     'Descontado de la inversión',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.warning,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -574,7 +662,7 @@ class _SaleTile extends StatelessWidget {
                     sale.paymentMethod == 'dolar' && sale.usdAmount > 0
                         ? 'ganancia ${formatMoney(sale.profit)} • \$${sale.usdAmount.toStringAsFixed(2)} USD'
                         : 'ganancia ${formatMoney(sale.profit)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.emerald,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,

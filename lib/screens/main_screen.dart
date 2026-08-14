@@ -16,6 +16,7 @@ import 'categories_screen.dart';
 import 'calculator_screen.dart';
 import 'daily_inventory_screen.dart';
 import 'expenses_screen.dart';
+import 'appearance_screen.dart';
 import 'publication_settings_screen.dart';
 
 class MainScreen extends StatelessWidget {
@@ -51,7 +52,7 @@ class _MainScreenBody extends StatelessWidget {
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.navy),
+            icon: Icon(Icons.menu, color: AppColors.navy),
             tooltip: 'Menú',
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
@@ -61,9 +62,10 @@ class _MainScreenBody extends StatelessWidget {
           if (nav.index == 1)
             Builder(
               builder: (innerContext) => IconButton(
-                icon: const Icon(Icons.share, color: AppColors.navy),
+                icon: Icon(Icons.share, color: AppColors.navy),
                 tooltip: 'Compartir publicación',
-                onPressed: () => _shareInventoryPublication(innerContext, db, messenger),
+                onPressed: () =>
+                    _shareInventoryPublication(innerContext, db, messenger),
               ),
             ),
         ],
@@ -81,12 +83,7 @@ class _MainScreenBody extends StatelessWidget {
                 label: 'Inventario Diario',
                 onTap: () {
                   Navigator.of(context).pop();
-                  _handleMenuAction(
-                    messenger,
-                    db,
-                    context,
-                    'daily_inventory',
-                  );
+                  _handleMenuAction(messenger, db, context, 'daily_inventory');
                 },
               ),
               _DrawerItem(
@@ -104,7 +101,12 @@ class _MainScreenBody extends StatelessWidget {
                 label: 'Cuentas de Transferencia',
                 onTap: () {
                   Navigator.of(context).pop();
-                  _handleMenuAction(messenger, db, context, 'transfer_accounts');
+                  _handleMenuAction(
+                    messenger,
+                    db,
+                    context,
+                    'transfer_accounts',
+                  );
                 },
               ),
               _DrawerItem(
@@ -125,7 +127,21 @@ class _MainScreenBody extends StatelessWidget {
                   _handleMenuAction(messenger, db, context, 'calculator');
                 },
               ),
-              const Divider(thickness: 1, height: 24, indent: 20, endIndent: 20),
+              _DrawerItem(
+                icon: Icons.palette_outlined,
+                iconColor: AppColors.navy,
+                label: 'Personalización',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'appearance');
+                },
+              ),
+              const Divider(
+                thickness: 1,
+                height: 24,
+                indent: 20,
+                endIndent: 20,
+              ),
               const _DrawerSectionLabel('Compartir'),
               _DrawerItem(
                 icon: Icons.campaign_outlined,
@@ -133,10 +149,20 @@ class _MainScreenBody extends StatelessWidget {
                 label: 'Publicación de inventario',
                 onTap: () {
                   Navigator.of(context).pop();
-                  _handleMenuAction(messenger, db, context, 'publication_settings');
+                  _handleMenuAction(
+                    messenger,
+                    db,
+                    context,
+                    'publication_settings',
+                  );
                 },
               ),
-              const Divider(thickness: 1, height: 24, indent: 20, endIndent: 20),
+              const Divider(
+                thickness: 1,
+                height: 24,
+                indent: 20,
+                endIndent: 20,
+              ),
               const _DrawerSectionLabel('Respaldo de datos'),
               _DrawerItem(
                 icon: Icons.save_alt,
@@ -171,10 +197,7 @@ class _MainScreenBody extends StatelessWidget {
           ),
         ),
       ),
-      body: IndexedStack(
-        index: nav.index,
-        children: _screens,
-      ),
+      body: IndexedStack(index: nav.index, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: nav.index,
         onDestinationSelected: (index) => nav.goTo(index),
@@ -220,52 +243,46 @@ Future<void> _handleMenuAction(
   if (value == 'transfer_accounts') {
     final navigator = Navigator.of(context);
     await navigator.push(
-      MaterialPageRoute(
-        builder: (_) => const TransferAccountsScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const TransferAccountsScreen()),
     );
   } else if (value == 'categories') {
     final navigator = Navigator.of(context);
     await navigator.push(
-      MaterialPageRoute(
-        builder: (_) => const CategoriesScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const CategoriesScreen()),
     );
   } else if (value == 'calculator') {
     final navigator = Navigator.of(context);
     await navigator.push(
-      MaterialPageRoute(
-        builder: (_) => const CalculatorScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const CalculatorScreen()),
     );
   } else if (value == 'daily_inventory') {
     final navigator = Navigator.of(context);
     await navigator.push(
-      MaterialPageRoute(
-        builder: (_) => const DailyInventoryScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const DailyInventoryScreen()),
     );
   } else if (value == 'expenses') {
     final navigator = Navigator.of(context);
     await navigator.push(
-      MaterialPageRoute(
-        builder: (_) => const ExpensesScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const ExpensesScreen()),
     );
   } else if (value == 'backup') {
     final ok = await db.makeBackup();
     messenger.showSnackBar(
       SnackBar(
-        content: Text(ok
-            ? 'Copia guardada en Descargas/CuentasClaras'
-            : 'No se pudo guardar la copia'),
+        content: Text(
+          ok
+              ? 'Copia guardada en Descargas/CuentasClaras'
+              : 'No se pudo guardar la copia',
+        ),
       ),
     );
   } else if (value == 'export') {
     await db.exportData();
     if (context.mounted) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Copia de seguridad lista para compartir')),
+        const SnackBar(
+          content: Text('Copia de seguridad lista para compartir'),
+        ),
       );
     }
   } else if (value == 'import') {
@@ -273,9 +290,12 @@ Future<void> _handleMenuAction(
   } else if (value == 'publication_settings') {
     final navigator = Navigator.of(context);
     await navigator.push(
-      MaterialPageRoute(
-        builder: (_) => const PublicationSettingsScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const PublicationSettingsScreen()),
+    );
+  } else if (value == 'appearance') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(builder: (_) => const AppearanceScreen()),
     );
   }
 }
@@ -303,16 +323,17 @@ Future<void> _shareInventoryPublication(
       );
     }
   } catch (e) {
-    messenger.showSnackBar(
-      SnackBar(content: Text('No se pudo compartir: $e')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text('No se pudo compartir: $e')));
   }
 }
 
 // Muestra un diálogo con las copias automáticas guardadas en el teléfono.
 // Así se restaura desde dentro de la app, sin abrir el selector de archivos
 // del sistema (que al volver reiniciaba la app y pedía login de nuevo).
-Future<void> _showImportOptions(BuildContext context, DatabaseService db) async {
+Future<void> _showImportOptions(
+  BuildContext context,
+  DatabaseService db,
+) async {
   final backups = db.savedBackups;
 
   final action = await showModalBottomSheet<String>(
@@ -329,7 +350,7 @@ Future<void> _showImportOptions(BuildContext context, DatabaseService db) async 
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Restaurar copia de seguridad',
                 style: TextStyle(
                   color: AppColors.textPrimary,
@@ -338,17 +359,20 @@ Future<void> _showImportOptions(BuildContext context, DatabaseService db) async 
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Elige una copia guardada en este teléfono o selecciona un archivo.',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 16),
               if (backups.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Text(
                     'Aún no hay copias guardadas en este teléfono.',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                 )
               else
@@ -356,17 +380,25 @@ Future<void> _showImportOptions(BuildContext context, DatabaseService db) async 
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: backups.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.border),
+                    separatorBuilder: (context, index) =>
+                        Divider(height: 1, color: AppColors.border),
                     itemBuilder: (context, index) {
                       final b = backups[index];
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.description_outlined, color: AppColors.navy),
+                        leading: Icon(
+                          Icons.description_outlined,
+                          color: AppColors.navy,
+                        ),
                         title: Text(
                           b['name'] ?? 'Copia',
-                          style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                        onTap: () => Navigator.of(sheetContext).pop('uri:${b['uri']}'),
+                        onTap: () =>
+                            Navigator.of(sheetContext).pop('uri:${b['uri']}'),
                       );
                     },
                   ),
@@ -378,7 +410,7 @@ Future<void> _showImportOptions(BuildContext context, DatabaseService db) async 
                 label: const Text('Elegir otro archivo'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.navy,
-                  side: const BorderSide(color: AppColors.navy),
+                  side: BorderSide(color: AppColors.navy),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
@@ -403,9 +435,7 @@ Future<void> _showImportOptions(BuildContext context, DatabaseService db) async 
       const SnackBar(content: Text('Datos restaurados correctamente')),
     );
   } catch (e) {
-    messenger.showSnackBar(
-      SnackBar(content: Text('Error al importar: $e')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text('Error al importar: $e')));
   }
 }
 
@@ -416,7 +446,7 @@ class _DrawerHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -426,7 +456,7 @@ class _DrawerHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(
+          SizedBox(
             width: double.infinity,
             child: AppLogo(
               fontSize: 22,
@@ -460,7 +490,7 @@ class _DrawerSectionLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
       child: Text(
         label.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textSecondary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -490,7 +520,7 @@ class _DrawerItem extends StatelessWidget {
       leading: Icon(icon, color: iconColor),
       title: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.textPrimary,
           fontWeight: FontWeight.w600,
           fontSize: 14,
@@ -507,10 +537,10 @@ class _DrawerFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
       child: Text(
-        'Cuentas Claras v1.5.1',
+        'Cuentas Claras v1.5.2',
         style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
       ),
     );

@@ -16,7 +16,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _page = 0;
 
-  static const List<_OnboardingPage> _pages = [
+  static List<_OnboardingPage> _buildPages() => [
     _OnboardingPage(
       icon: Icons.inventory_2_outlined,
       color: AppColors.navy,
@@ -62,7 +62,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _next() {
-    if (_page == _pages.length - 1) {
+    if (_page == _buildPages().length - 1) {
       _finish();
     } else {
       _controller.nextPage(
@@ -75,9 +75,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _finish() {
     final db = context.read<DatabaseService>();
     db.markOnboardingSeen();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   @override
@@ -96,20 +96,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     fit: BoxFit.scaleDown,
                     child: AppLogo(fontSize: 18),
                   ),
-                  TextButton(
-                    onPressed: _finish,
-                    child: const Text('Omitir'),
-                  ),
+                  TextButton(onPressed: _finish, child: const Text('Omitir')),
                 ],
               ),
             ),
             Expanded(
               child: PageView.builder(
                 controller: _controller,
-                itemCount: _pages.length,
+                itemCount: _buildPages().length,
                 onPageChanged: (i) => setState(() => _page = i),
                 itemBuilder: (context, i) {
-                  final p = _pages[i];
+                  final p = _buildPages()[i];
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Column(
@@ -128,7 +125,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Text(
                           p.title,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
@@ -139,7 +136,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Text(
                           p.description,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 15,
                             height: 1.5,
@@ -153,7 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_pages.length, (i) {
+              children: List.generate(_buildPages().length, (i) {
                 final active = i == _page;
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
@@ -174,7 +171,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(54),
                 ),
-                child: Text(_page == _pages.length - 1 ? 'Empezar' : 'Siguiente'),
+                child: Text(
+                  _page == _buildPages().length - 1 ? 'Empezar' : 'Siguiente',
+                ),
               ),
             ),
           ],

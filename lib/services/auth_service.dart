@@ -93,7 +93,10 @@ class AuthService {
   String _generateDeviceId() {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final random = Random.secure();
-    final part = () => List.generate(4, (_) => alphabet[random.nextInt(alphabet.length)]).join();
+    final part = () => List.generate(
+      4,
+      (_) => alphabet[random.nextInt(alphabet.length)],
+    ).join();
     return '${part()}-${part()}';
   }
 

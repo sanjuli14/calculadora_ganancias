@@ -59,7 +59,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Período personalizado',
                 style: TextStyle(
                   color: AppColors.textPrimary,
@@ -68,7 +68,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Selecciona un rango de fechas para ver los resultados',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
@@ -102,7 +102,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [AppColors.navy, AppColors.turquoise],
@@ -121,7 +121,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     children: [
                       const Text(
                         'Ganancia del período',
-                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -136,16 +140,26 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          _SummaryStat(label: 'Ventas', value: '${customSales.length}'),
-                          Container(width: 1, height: 32, color: Colors.white24),
-                          _SummaryStat(label: 'Ingresos', value: formatMoney(totalRevenue)),
+                          _SummaryStat(
+                            label: 'Ventas',
+                            value: '${customSales.length}',
+                          ),
+                          Container(
+                            width: 1,
+                            height: 32,
+                            color: Colors.white24,
+                          ),
+                          _SummaryStat(
+                            label: 'Ingresos',
+                            value: formatMoney(totalRevenue),
+                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Detalle',
                   style: TextStyle(
                     color: AppColors.textPrimary,
@@ -189,11 +203,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   ),
                   child: Column(
                     children: [
-                      _DetailRow(label: 'Total de ventas', value: formatMoney(totalRevenue)),
+                      _DetailRow(
+                        label: 'Total de ventas',
+                        value: formatMoney(totalRevenue),
+                      ),
                       const Divider(height: 24),
-                      _DetailRow(label: 'Total de ganancias', value: formatMoney(totalProfit), valueColor: AppColors.emerald),
+                      _DetailRow(
+                        label: 'Total de ganancias',
+                        value: formatMoney(totalProfit),
+                        valueColor: AppColors.emerald,
+                      ),
                       const Divider(height: 24),
-                      _DetailRow(label: 'Número de ventas', value: '${customSales.length}'),
+                      _DetailRow(
+                        label: 'Número de ventas',
+                        value: '${customSales.length}',
+                      ),
                     ],
                   ),
                 ),
@@ -211,7 +235,11 @@ class _DateButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _DateButton({required this.label, required this.icon, required this.onTap});
+  const _DateButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +260,7 @@ class _DateButton extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
@@ -259,9 +287,16 @@ class _SummaryStat extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
         ],
       ),
     );
@@ -280,7 +315,7 @@ class _DetailRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textSecondary)),
+        Text(label, style: TextStyle(color: AppColors.textSecondary)),
         Text(
           value,
           style: TextStyle(

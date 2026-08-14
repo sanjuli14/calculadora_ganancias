@@ -15,9 +15,7 @@ class TransferAccountsScreen extends StatelessWidget {
     final db = Provider.of<DatabaseService>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cuentas de Transferencia'),
-      ),
+      appBar: AppBar(title: const Text('Cuentas de Transferencia')),
       body: SafeArea(
         child: ValueListenableBuilder<Box<TransferAccount>>(
           valueListenable: db.transferAccountsListenable,
@@ -34,10 +32,7 @@ class TransferAccountsScreen extends StatelessWidget {
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final acc = accounts[index];
-                return _AccountCard(
-                  account: acc,
-                  keyValue: box.keyAt(index),
-                );
+                return _AccountCard(account: acc, keyValue: box.keyAt(index));
               },
             );
           },
@@ -72,14 +67,14 @@ class _EmptyState extends StatelessWidget {
                 color: AppColors.navySoft,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.account_balance_outlined,
                 size: 44,
                 color: AppColors.navy,
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Aún no tienes cuentas guardadas',
               style: TextStyle(
                 color: AppColors.textPrimary,
@@ -88,7 +83,7 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Agrega una cuenta con su QR para mostrarla al cobrar por transferencia.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
@@ -108,7 +103,8 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasQr = account.qrImagePath.isNotEmpty &&
+    final hasQr =
+        account.qrImagePath.isNotEmpty &&
         File(account.qrImagePath).existsSync();
 
     return Material(
@@ -139,7 +135,7 @@ class _AccountCard extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: hasQr
                     ? Image.file(File(account.qrImagePath), fit: BoxFit.cover)
-                    : const Icon(Icons.qr_code_2, color: AppColors.navy, size: 32),
+                    : Icon(Icons.qr_code_2, color: AppColors.navy, size: 32),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -151,7 +147,7 @@ class _AccountCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             account.alias,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
@@ -162,7 +158,10 @@ class _AccountCard extends StatelessWidget {
                         ),
                         if (account.isDefault)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.navy,
                               borderRadius: BorderRadius.circular(8),
@@ -181,7 +180,7 @@ class _AccountCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       account.bankName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -190,7 +189,7 @@ class _AccountCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       account.cardNumber,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 13,
                         fontFamily: 'monospace',
@@ -202,7 +201,7 @@ class _AccountCard extends StatelessWidget {
               ),
               IconButton(
                 onPressed: () => _showAccountMenu(context),
-                icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                icon: Icon(Icons.more_vert, color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -226,7 +225,7 @@ class _AccountCard extends StatelessWidget {
             children: [
               if (!account.isDefault)
                 ListTile(
-                  leading: const Icon(Icons.star_outline, color: AppColors.navy),
+                  leading: Icon(Icons.star_outline, color: AppColors.navy),
                   title: const Text('Marcar como principal'),
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
@@ -237,13 +236,15 @@ class _AccountCard extends StatelessWidget {
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Cuenta marcada como principal')),
+                        const SnackBar(
+                          content: Text('Cuenta marcada como principal'),
+                        ),
                       );
                     }
                   },
                 ),
               ListTile(
-                leading: const Icon(Icons.edit_outlined, color: AppColors.navy),
+                leading: Icon(Icons.edit_outlined, color: AppColors.navy),
                 title: const Text('Editar'),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -251,8 +252,8 @@ class _AccountCard extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: AppColors.danger),
-                title: const Text(
+                leading: Icon(Icons.delete_outline, color: AppColors.danger),
+                title: Text(
                   'Eliminar',
                   style: TextStyle(color: AppColors.danger),
                 ),
@@ -262,7 +263,9 @@ class _AccountCard extends StatelessWidget {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: const Text('Eliminar cuenta'),
-                      content: const Text('¿Seguro que deseas eliminar esta cuenta?'),
+                      content: const Text(
+                        '¿Seguro que deseas eliminar esta cuenta?',
+                      ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.of(ctx).pop(false),
@@ -270,7 +273,7 @@ class _AccountCard extends StatelessWidget {
                         ),
                         TextButton(
                           onPressed: () => Navigator.of(ctx).pop(true),
-                          child: const Text(
+                          child: Text(
                             'Eliminar',
                             style: TextStyle(color: AppColors.danger),
                           ),
@@ -349,7 +352,10 @@ Future<void> _openAccountForm(
                             ? Stack(
                                 children: [
                                   Positioned.fill(
-                                    child: Image.file(File(qrPath), fit: BoxFit.cover),
+                                    child: Image.file(
+                                      File(qrPath),
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                   Positioned(
                                     right: 4,
@@ -369,7 +375,7 @@ Future<void> _openAccountForm(
                                   ),
                                 ],
                               )
-                            : const Column(
+                            : Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
@@ -395,7 +401,9 @@ Future<void> _openAccountForm(
                         onPressed: () => setState(() => qrPath = ''),
                         icon: const Icon(Icons.close, size: 16),
                         label: const Text('Quitar QR'),
-                        style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.danger,
+                        ),
                       ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -407,7 +415,8 @@ Future<void> _openAccountForm(
                       ),
                       textCapitalization: TextCapitalization.sentences,
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Ingresa un alias';
+                        if (v == null || v.trim().isEmpty)
+                          return 'Ingresa un alias';
                         return null;
                       },
                     ),
@@ -421,7 +430,8 @@ Future<void> _openAccountForm(
                       ),
                       textCapitalization: TextCapitalization.words,
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Ingresa el banco';
+                        if (v == null || v.trim().isEmpty)
+                          return 'Ingresa el banco';
                         return null;
                       },
                     ),
@@ -447,7 +457,7 @@ Future<void> _openAccountForm(
                       value: isDefault,
                       onChanged: (v) => setState(() => isDefault = v),
                       activeThumbColor: AppColors.navy,
-                      title: const Text(
+                      title: Text(
                         'Marcar como cuenta principal',
                         style: TextStyle(
                           fontSize: 13,
@@ -455,9 +465,12 @@ Future<void> _openAccountForm(
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         'Se mostrará primero al cobrar',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -488,7 +501,9 @@ Future<void> _openAccountForm(
                   if (account == null) {
                     await db.addTransferAccount(newAccount);
                   } else {
-                    final index = db.transferAccountsBox.values.toList().indexOf(account);
+                    final index = db.transferAccountsBox.values
+                        .toList()
+                        .indexOf(account);
                     await db.updateTransferAccount(index, newAccount);
                   }
                   if (context.mounted) {
@@ -496,7 +511,9 @@ Future<void> _openAccountForm(
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          account == null ? 'Cuenta agregada' : 'Cuenta actualizada',
+                          account == null
+                              ? 'Cuenta agregada'
+                              : 'Cuenta actualizada',
                         ),
                       ),
                     );

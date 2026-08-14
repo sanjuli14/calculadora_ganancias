@@ -16,9 +16,9 @@ class ExpensesScreen extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back, color: AppColors.navy),
+          icon: Icon(Icons.arrow_back, color: AppColors.navy),
         ),
-        title: const Text(
+        title: Text(
           'Gastos',
           style: TextStyle(
             color: AppColors.textPrimary,
@@ -28,25 +28,25 @@ class ExpensesScreen extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const _ExpenseFormScreen(),
-          ),
-        ),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const _ExpenseFormScreen())),
         icon: const Icon(Icons.add),
         label: const Text('Nuevo gasto'),
       ),
       body: SafeArea(
         child: ValueListenableBuilder<Box<Expense>>(
-          valueListenable: Provider.of<DatabaseService>(context, listen: false)
-              .expensesListenable,
+          valueListenable: Provider.of<DatabaseService>(
+            context,
+            listen: false,
+          ).expensesListenable,
           builder: (context, box, _) {
             final db = Provider.of<DatabaseService>(context);
             final expenses = box.values.toList().cast<Expense>()
               ..sort((a, b) => b.date.compareTo(a.date));
 
             if (expenses.isEmpty) {
-              return const Center(
+              return Center(
                 child: Padding(
                   padding: EdgeInsets.all(24),
                   child: Column(
@@ -95,7 +95,7 @@ class ExpensesScreen extends StatelessWidget {
                           count: expenses.length,
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Historial de gastos',
                           style: TextStyle(
                             color: AppColors.textPrimary,
@@ -111,23 +111,19 @@ class ExpensesScreen extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final expense = expenses[index];
-                        return _ExpenseTile(
-                          expense: expense,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => _ExpenseFormScreen(
-                                expense: expense,
-                              ),
-                            ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final expense = expenses[index];
+                      return _ExpenseTile(
+                        expense: expense,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                _ExpenseFormScreen(expense: expense),
                           ),
-                          onDelete: () => _confirmDelete(context, db, expense),
-                        );
-                      },
-                      childCount: expenses.length,
-                    ),
+                        ),
+                        onDelete: () => _confirmDelete(context, db, expense),
+                      );
+                    }, childCount: expenses.length),
                   ),
                 ),
               ],
@@ -155,10 +151,7 @@ class ExpensesScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: AppColors.danger),
-            ),
+            child: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -186,7 +179,7 @@ class _TotalsCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.navy, AppColors.warning],
@@ -302,15 +295,11 @@ class _ExpenseTile extends StatelessWidget {
             color: AppColors.warningSoft,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(
-            Icons.person_outline,
-            color: AppColors.warning,
-            size: 20,
-          ),
+          child: Icon(Icons.person_outline, color: AppColors.warning, size: 20),
         ),
         title: Text(
           expense.name,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 14,
@@ -324,10 +313,7 @@ class _ExpenseTile extends StatelessWidget {
             if (expense.description.isNotEmpty)
               Text(
                 expense.description,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -347,19 +333,19 @@ class _ExpenseTile extends StatelessWidget {
           children: [
             Text(
               '-${formatMoney(expense.amount)}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.danger,
                 fontWeight: FontWeight.w800,
                 fontSize: 14,
               ),
             ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+              icon: Icon(Icons.more_vert, color: AppColors.textSecondary),
               onSelected: (value) {
                 if (value == 'edit') onTap();
                 if (value == 'delete') onDelete();
               },
-              itemBuilder: (context) => const [
+              itemBuilder: (context) => [
                 PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
@@ -370,8 +356,14 @@ class _ExpenseTile extends StatelessWidget {
                 PopupMenuItem(
                   value: 'delete',
                   child: ListTile(
-                    leading: Icon(Icons.delete_outline, color: AppColors.danger),
-                    title: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+                    leading: Icon(
+                      Icons.delete_outline,
+                      color: AppColors.danger,
+                    ),
+                    title: Text(
+                      'Eliminar',
+                      style: TextStyle(color: AppColors.danger),
+                    ),
                   ),
                 ),
               ],
@@ -449,8 +441,9 @@ class _ExpenseFormScreenState extends State<_ExpenseFormScreen> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     final description = _descriptionController.text.trim();
-    final amount =
-        double.tryParse(_amountController.text.trim().replaceAll(',', '.'));
+    final amount = double.tryParse(
+      _amountController.text.trim().replaceAll(',', '.'),
+    );
 
     if (name.isEmpty) {
       _showError('Ingresa el nombre de quién realizó el gasto');
@@ -490,11 +483,11 @@ class _ExpenseFormScreenState extends State<_ExpenseFormScreen> {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back, color: AppColors.navy),
+          icon: Icon(Icons.arrow_back, color: AppColors.navy),
         ),
         title: Text(
           _isEditing ? 'Editar gasto' : 'Nuevo gasto',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 18,
@@ -507,7 +500,7 @@ class _ExpenseFormScreenState extends State<_ExpenseFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Gastos que no están relacionados con las ventas ni el inventario.',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
@@ -560,7 +553,7 @@ class _ExpenseFormScreenState extends State<_ExpenseFormScreen> {
                           RegExp(r'^(\w)'),
                           (m) => m.group(1)!.toUpperCase(),
                         ),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,

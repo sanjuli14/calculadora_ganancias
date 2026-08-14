@@ -41,11 +41,13 @@ class Sale extends HiveObject {
 
   bool get isOwnExpense => paymentMethod == 'gasto_propio';
   double get total => isOwnExpense ? 0 : unitSellPrice * quantity;
-  double get profit => isOwnExpense ? 0 : (unitSellPrice - unitBuyPrice) * quantity;
+  double get profit =>
+      isOwnExpense ? 0 : (unitSellPrice - unitBuyPrice) * quantity;
   double get ownExpenseCost => isOwnExpense ? unitBuyPrice * quantity : 0;
   double get commission => commissionAmount ?? 0;
   double get netReceived => total - commission;
-  double get usdAmount => exchangeRate != null && exchangeRate! > 0 ? total / exchangeRate! : 0;
+  double get usdAmount =>
+      exchangeRate != null && exchangeRate! > 0 ? total / exchangeRate! : 0;
 
   Map<String, dynamic> toJson() {
     return {

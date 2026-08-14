@@ -8,9 +8,7 @@ class HelpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ayuda'),
-      ),
+      appBar: AppBar(title: const Text('Ayuda')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -142,9 +140,11 @@ class HelpScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.warningSoft,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: AppColors.warning.withValues(alpha: 0.4),
+                ),
               ),
-              child: const Column(
+              child: Column(
                 children: [
                   Row(
                     children: [
@@ -224,7 +224,7 @@ class _InfoCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
@@ -233,7 +233,7 @@ class _InfoCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   description,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
                     height: 1.5,
@@ -273,12 +273,16 @@ class _ChecklistCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.check_circle_outline, color: AppColors.navy, size: 20),
+                Icon(
+                  Icons.check_circle_outline,
+                  color: AppColors.navy,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     items[i],
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 13,
                       height: 1.4,

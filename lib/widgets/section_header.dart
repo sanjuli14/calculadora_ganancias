@@ -23,7 +23,7 @@ class SectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
@@ -33,7 +33,7 @@ class SectionHeader extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle!,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
@@ -51,17 +51,18 @@ class SectionHeader extends StatelessWidget {
 class GradientHero extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final List<Color> colors;
+  final List<Color>? colors;
 
   const GradientHero({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(20),
-    this.colors = const [AppColors.navy, AppColors.navyLight],
+    this.colors,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColors = colors ?? [AppColors.navy, AppColors.navyLight];
     return Container(
       width: double.infinity,
       padding: padding,
@@ -69,12 +70,12 @@ class GradientHero extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: colors,
+          colors: effectiveColors,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: colors.first.withOpacity(0.3),
+            color: effectiveColors.first.withOpacity(0.3),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),

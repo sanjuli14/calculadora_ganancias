@@ -14,8 +14,12 @@ class Denomination {
   final bool isCoin;
   final String currencyCode;
 
-  const Denomination(this.label, this.value,
-      {this.isCoin = false, this.currencyCode = 'CUP'});
+  const Denomination(
+    this.label,
+    this.value, {
+    this.isCoin = false,
+    this.currencyCode = 'CUP',
+  });
 }
 
 const List<Denomination> kBillDenominations = [
@@ -140,22 +144,26 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
         : _noteController.text.trim();
 
     if (cupCounts.isNotEmpty) {
-      await db.addCashCount(CashCount(
-        date: now,
-        denominations: cupCounts,
-        expectedAmount: expected,
-        note: note,
-        currencyCode: 'CUP',
-      ));
+      await db.addCashCount(
+        CashCount(
+          date: now,
+          denominations: cupCounts,
+          expectedAmount: expected,
+          note: note,
+          currencyCode: 'CUP',
+        ),
+      );
     }
     if (usdCounts.isNotEmpty) {
-      await db.addCashCount(CashCount(
-        date: now,
-        denominations: usdCounts,
-        expectedAmount: null,
-        note: note,
-        currencyCode: 'USD',
-      ));
+      await db.addCashCount(
+        CashCount(
+          date: now,
+          denominations: usdCounts,
+          expectedAmount: null,
+          note: note,
+          currencyCode: 'USD',
+        ),
+      );
     }
 
     _reset();
@@ -183,7 +191,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Caja Contable',
                       style: TextStyle(
                         color: AppColors.textPrimary,
@@ -191,7 +199,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'Cuenta el dinero por billetes (CUP y USD)',
                       style: TextStyle(
                         color: AppColors.textSecondary,
@@ -261,13 +269,13 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.fact_check_outlined,
                                   color: AppColors.navy,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
-                                const Expanded(
+                                Expanded(
                                   child: Text(
                                     'Caja esperada (opcional)',
                                     style: TextStyle(
@@ -290,8 +298,8 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                                 controller: _expectedController,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
+                                      decimal: true,
+                                    ),
                                 decoration: const InputDecoration(
                                   labelText: 'Monto esperado (CUP)',
                                   prefixIcon: Icon(Icons.payments_outlined),
@@ -350,7 +358,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                     IconButton(
                       tooltip: 'Eliminar todo',
                       onPressed: () => _confirmClearHistory(db),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.delete_sweep_outlined,
                         color: AppColors.danger,
                       ),
@@ -364,7 +372,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
               builder: (context, box, _) {
                 final counts = box.values.toList().cast<CashCount>();
                 if (counts.isEmpty) {
-                  return const SliverFillRemaining(
+                  return SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
                       child: Padding(
@@ -425,10 +433,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: AppColors.danger),
-            ),
+            child: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -453,7 +458,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
+            child: Text(
               'Eliminar todo',
               style: TextStyle(color: AppColors.danger),
             ),
@@ -498,7 +503,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
               Center(
                 child: Text(
                   DateFormat('EEEE, d MMM yyyy HH:mm', 'es').format(count.date),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
                   ),
@@ -507,12 +512,12 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
               const SizedBox(height: 6),
               Center(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: isUsd
-                        ? AppColors.navySoft
-                        : AppColors.turquoiseSoft,
+                    color: isUsd ? AppColors.navySoft : AppColors.turquoiseSoft,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -530,7 +535,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                 Center(
                   child: Text(
                     count.note!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
                       fontStyle: FontStyle.italic,
                     ),
@@ -558,7 +563,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                           isUsd
                               ? formatUsd(v * e.value)
                               : formatMoney(v * e.value),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: AppColors.navy,
                           ),
@@ -577,10 +582,8 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   Text(
-                    isUsd
-                        ? formatUsd(count.total)
-                        : formatMoney(count.total),
-                    style: const TextStyle(
+                    isUsd ? formatUsd(count.total) : formatMoney(count.total),
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: AppColors.emerald,
@@ -594,7 +597,7 @@ class _CashBoxScreenState extends State<CashBoxScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Diferencia vs esperado',
                         style: TextStyle(
                           color: AppColors.textSecondary,
@@ -643,7 +646,7 @@ class _TotalsCards extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [AppColors.navy, AppColors.turquoise],
@@ -662,7 +665,11 @@ class _TotalsCards extends StatelessWidget {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.payments_outlined, color: Colors.white70, size: 18),
+                  Icon(
+                    Icons.payments_outlined,
+                    color: Colors.white70,
+                    size: 18,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Total contado (CUP)',
@@ -687,8 +694,10 @@ class _TotalsCards extends StatelessWidget {
               if (diff != null) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: diff.abs() < 0.005
                         ? Colors.white.withOpacity(0.2)
@@ -728,7 +737,7 @@ class _TotalsCards extends StatelessWidget {
                   color: AppColors.navySoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.attach_money,
                   color: AppColors.navy,
                   size: 22,
@@ -739,7 +748,7 @@ class _TotalsCards extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Total contado (USD)',
                       style: TextStyle(
                         color: AppColors.textSecondary,
@@ -750,7 +759,7 @@ class _TotalsCards extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       formatUsd(totalUsd),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -793,9 +802,7 @@ class _CurrencySelector extends StatelessWidget {
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return value == 'USD'
-                ? AppColors.navy
-                : AppColors.turquoise;
+            return value == 'USD' ? AppColors.navy : AppColors.turquoise;
           }
           return AppColors.surface;
         }),
@@ -805,7 +812,7 @@ class _CurrencySelector extends StatelessWidget {
           }
           return AppColors.textPrimary;
         }),
-        side: WidgetStateProperty.all(const BorderSide(color: AppColors.border)),
+        side: WidgetStateProperty.all(BorderSide(color: AppColors.border)),
         shape: WidgetStateProperty.all(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -837,8 +844,8 @@ class _DenominationTile extends StatelessWidget {
         border: Border.all(
           color: count > 0
               ? (isUsd
-                  ? AppColors.navy.withOpacity(0.6)
-                  : AppColors.emerald.withOpacity(0.6))
+                    ? AppColors.navy.withOpacity(0.6)
+                    : AppColors.emerald.withOpacity(0.6))
               : AppColors.border,
         ),
         boxShadow: [
@@ -856,7 +863,7 @@ class _DenominationTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (denomination.isCoin)
-                const Icon(Icons.circle, color: AppColors.turquoise, size: 13)
+                Icon(Icons.circle, color: AppColors.turquoise, size: 13)
               else
                 Icon(
                   Icons.rectangle_outlined,
@@ -867,7 +874,7 @@ class _DenominationTile extends StatelessWidget {
               Flexible(
                 child: Text(
                   '${isUsd ? 'USD' : 'CUP'} ${formatCents(denomination.value)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
@@ -895,7 +902,7 @@ class _DenominationTile extends StatelessWidget {
                       child: Text(
                         '$count',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.navy,
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
@@ -915,8 +922,8 @@ class _DenominationTile extends StatelessWidget {
             subtotal == 0
                 ? '—'
                 : (isUsd
-                    ? formatUsdCompact(subtotal)
-                    : formatMoneyCompact(subtotal)),
+                      ? formatUsdCompact(subtotal)
+                      : formatMoneyCompact(subtotal)),
             style: TextStyle(
               color: subtotal == 0
                   ? AppColors.textSecondary
@@ -1027,16 +1034,14 @@ class _HistoryTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
-            isUsd
-                ? Icons.attach_money
-                : Icons.account_balance_wallet_outlined,
+            isUsd ? Icons.attach_money : Icons.account_balance_wallet_outlined,
             color: isUsd ? AppColors.navy : AppColors.turquoise,
             size: 20,
           ),
         ),
         title: Text(
           isUsd ? formatUsd(count.total) : formatMoney(count.total),
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 15,
@@ -1044,7 +1049,7 @@ class _HistoryTile extends StatelessWidget {
         ),
         subtitle: Text(
           count.note == null ? dateStr : '$dateStr • ${count.note}',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -1065,7 +1070,7 @@ class _HistoryTile extends StatelessWidget {
               ),
             IconButton(
               onPressed: onDelete,
-              icon: const Icon(
+              icon: Icon(
                 Icons.delete_outline,
                 color: AppColors.danger,
                 size: 20,

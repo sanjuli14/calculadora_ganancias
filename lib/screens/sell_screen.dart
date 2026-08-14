@@ -27,9 +27,7 @@ class SellScreen extends StatefulWidget {
 }
 
 class _SellScreenState extends State<SellScreen> {
-  Product? _selectedProduct;
   final List<_CartItem> _cart = [];
-  final _quantityController = TextEditingController(text: '1');
   final _customerController = TextEditingController();
   final _commissionController = TextEditingController();
   final _exchangeRateController = TextEditingController();
@@ -41,7 +39,6 @@ class _SellScreenState extends State<SellScreen> {
 
   @override
   void dispose() {
-    _quantityController.dispose();
     _customerController.dispose();
     _commissionController.dispose();
     _exchangeRateController.dispose();
@@ -71,35 +68,29 @@ class _SellScreenState extends State<SellScreen> {
   bool get _isOwnExpense => _paymentMethod == PaymentMethod.ownExpense;
 
   double get _cartTotal {
-    return _cart.fold(
-      0.0,
-      (s, i) => s + i.quantity * (i.product.buyPrice),
-    );
+    return _cart.fold(0.0, (s, i) => s + i.quantity * (i.product.buyPrice));
   }
 
-  void _addToCart() {
-    final product = _selectedProduct;
-    if (product == null) {
-      _showSnack('Selecciona un producto primero');
-      return;
-    }
-    final qty = int.tryParse(_quantityController.text) ?? 0;
-    if (qty <= 0) {
-      _showSnack('Ingresa una cantidad válida');
+  void _addUnit(Product product) {
+    if (product.stock <= 0) {
+      _showSnack('${product.name}: agotado');
       return;
     }
     final inCart = _inCartFor(product);
-    if (inCart + qty > product.stock) {
-      _showSnack('Stock insuficiente (Máx: ${product.stock - inCart})');
+    if (inCart >= product.stock) {
+      _showSnack('Stock insuficiente de ${product.name} (Máx: ${product.stock})');
       return;
     }
-    final existing = _cart.where((i) => i.product.name == product.name).toList();
-    if (existing.isNotEmpty) {
-      existing.first.quantity += qty;
-    } else {
-      _cart.add(_CartItem(product, qty));
-    }
-    setState(() => _quantityController.text = '1');
+    final existing = _cart
+        .where((i) => i.product.name == product.name)
+        .toList();
+    setState(() {
+      if (existing.isNotEmpty) {
+        existing.first.quantity += 1;
+      } else {
+        _cart.add(_CartItem(product, 1));
+      }
+    });
   }
 
   void _changeQuantity(_CartItem item, int delta) {
@@ -120,9 +111,9 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -132,7 +123,7 @@ class _SellScreenState extends State<SellScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text(
+        title: Text(
           'Registrar Venta',
           style: TextStyle(
             color: AppColors.textPrimary,
@@ -143,10 +134,10 @@ class _SellScreenState extends State<SellScreen> {
         actions: [
           IconButton(
             tooltip: 'Abrir calculadora',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CalculatorScreen()),
-            ),
-            icon: const Icon(Icons.calculate_outlined, color: AppColors.navy),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const CalculatorScreen())),
+            icon: Icon(Icons.calculate_outlined, color: AppColors.navy),
           ),
         ],
       ),
@@ -158,7 +149,7 @@ class _SellScreenState extends State<SellScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Registrar Venta',
                   style: TextStyle(
                     color: AppColors.textPrimary,
@@ -166,9 +157,12 @@ class _SellScreenState extends State<SellScreen> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const Text(
-                  'Añade los productos al carrito y elige la forma de pago',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                Text(
+                  'Toca un producto para añadirlo. Toca de nuevo para sumar más unidades',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ValueListenableBuilder<Box<Product>>(
@@ -184,72 +178,81 @@ class _SellScreenState extends State<SellScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: const Column(
+                        child: Column(
                           children: [
-                            Icon(Icons.shopping_bag_outlined, color: AppColors.textSecondary, size: 40),
+                            Icon(
+                              Icons.shopping_bag_outlined,
+                              color: AppColors.textSecondary,
+                              size: 40,
+                            ),
                             SizedBox(height: 8),
                             Text(
                               'No hay productos disponibles',
-                              style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             SizedBox(height: 4),
                             Text(
                               'Agrega inventario primero',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
                       );
                     }
 
-                    return DropdownButtonFormField<Product>(
-                      value: _selectedProduct,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Seleccionar Producto',
-                        prefixIcon: Icon(Icons.shopping_bag_outlined),
-                      ),
-                      items: products.map((product) {
-                        final remaining = product.stock - _inCartFor(product);
-                        return DropdownMenuItem(
-                          value: product,
-                          child: Text('${product.name} (Stock: $remaining)'),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedProduct = value;
-                          _quantityController.text = '1';
-                        });
-                      },
-                      validator: (value) => value == null ? 'Seleccione un producto' : null,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Productos',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Toca para añadir',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 0.72,
+                              ),
+                          itemCount: products.length,
+                          itemBuilder: (context, index) {
+                            final product = products[index];
+                            return _ProductTile(
+                              product: product,
+                              inCart: _inCartFor(product),
+                              onTap: () => _addUnit(product),
+                            );
+                          },
+                        ),
+                      ],
                     );
                   },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _quantityController,
-                        decoration: const InputDecoration(
-                          labelText: 'Cantidad',
-                          prefixIcon: Icon(Icons.numbers),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: _addToCart,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.navy,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                      ),
-                      icon: const Icon(Icons.add_shopping_cart),
-                      label: const Text('Agregar'),
-                    ),
-                  ],
                 ),
                 const SizedBox(height: 20),
                 if (_cart.isNotEmpty) ...[
@@ -258,7 +261,7 @@ class _SellScreenState extends State<SellScreen> {
                     children: [
                       Text(
                         'Carrito ($_cartItemCount producto${_cartItemCount == 1 ? '' : 's'})',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
@@ -272,12 +275,14 @@ class _SellScreenState extends State<SellScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  ..._cart.map((item) => _CartLine(
-                        item: item,
-                        isOwnExpense: _isOwnExpense,
-                        onChange: (delta) => _changeQuantity(item, delta),
-                        onRemove: () => setState(() => _cart.remove(item)),
-                      )),
+                  ..._cart.map(
+                    (item) => _CartLine(
+                      item: item,
+                      isOwnExpense: _isOwnExpense,
+                      onChange: (delta) => _changeQuantity(item, delta),
+                      onRemove: () => setState(() => _cart.remove(item)),
+                    ),
+                  ),
                   const SizedBox(height: 20),
                 ],
                 _MethodSelector(
@@ -322,7 +327,8 @@ class _SellScreenState extends State<SellScreen> {
                       return _TransferAccountPicker(
                         accounts: accounts,
                         selectedKey: _selectedAccountKey,
-                        onSelected: (key) => setState(() => _selectedAccountKey = key),
+                        onSelected: (key) =>
+                            setState(() => _selectedAccountKey = key),
                         onCreate: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const TransferAccountsScreen(),
@@ -340,9 +346,9 @@ class _SellScreenState extends State<SellScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.percent, color: AppColors.navy, size: 20),
+                        Icon(Icons.percent, color: AppColors.navy, size: 20),
                         const SizedBox(width: 10),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             '¿Aplica comisión por transferencia?',
                             style: TextStyle(
@@ -355,7 +361,8 @@ class _SellScreenState extends State<SellScreen> {
                         Switch(
                           value: _applyCommission,
                           activeThumbColor: AppColors.emerald,
-                          onChanged: (v) => setState(() => _applyCommission = v),
+                          onChanged: (v) =>
+                              setState(() => _applyCommission = v),
                         ),
                       ],
                     ),
@@ -368,10 +375,15 @@ class _SellScreenState extends State<SellScreen> {
                         labelText: 'Comisión (CUP)',
                         prefixIcon: Icon(Icons.percent),
                       ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       validator: (value) {
                         final v = double.tryParse(value ?? '');
-                        if (value == null || value.isEmpty || v == null || v < 0) {
+                        if (value == null ||
+                            value.isEmpty ||
+                            v == null ||
+                            v < 0) {
                           return 'Comisión inválida';
                         }
                         return null;
@@ -386,10 +398,15 @@ class _SellScreenState extends State<SellScreen> {
                       hintText: 'Ej: 120',
                       prefixIcon: Icon(Icons.currency_exchange),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     validator: (value) {
                       final v = double.tryParse(value ?? '');
-                      if (value == null || value.isEmpty || v == null || v <= 0) {
+                      if (value == null ||
+                          value.isEmpty ||
+                          v == null ||
+                          v <= 0) {
                         return 'Ingresa el tipo de cambio';
                       }
                       return null;
@@ -410,22 +427,26 @@ class _SellScreenState extends State<SellScreen> {
                     backgroundColor: _paymentMethod == PaymentMethod.credit
                         ? AppColors.turquoise
                         : _paymentMethod == PaymentMethod.ownExpense
-                            ? AppColors.warning
-                            : AppColors.emerald,
+                        ? AppColors.warning
+                        : AppColors.emerald,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  icon: Icon(_paymentMethod == PaymentMethod.credit
-                      ? Icons.handshake_outlined
-                      : _paymentMethod == PaymentMethod.ownExpense
-                          ? Icons.person_outline
-                          : Icons.check_circle_outline),
+                  icon: Icon(
+                    _paymentMethod == PaymentMethod.credit
+                        ? Icons.handshake_outlined
+                        : _paymentMethod == PaymentMethod.ownExpense
+                        ? Icons.person_outline
+                        : Icons.check_circle_outline,
+                  ),
                   label: Text(
                     _paymentMethod == PaymentMethod.credit
                         ? 'REGISTRAR FIADO'
                         : _paymentMethod == PaymentMethod.ownExpense
-                            ? 'REGISTRAR GASTO PROPIO'
-                            : 'CONFIRMAR VENTA',
+                        ? 'REGISTRAR GASTO PROPIO'
+                        : 'CONFIRMAR VENTA',
                   ),
                 ),
               ],
@@ -447,7 +468,9 @@ class _SellScreenState extends State<SellScreen> {
 
     if (_paymentMethod == PaymentMethod.credit) {
       final customer = _customerController.text.trim();
-      final note = _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
+      final note = _noteController.text.trim().isEmpty
+          ? null
+          : _noteController.text.trim();
       for (final item in _cart) {
         await db.registerCreditSale(
           item.product,
@@ -457,7 +480,9 @@ class _SellScreenState extends State<SellScreen> {
         );
       }
       if (!mounted) return;
-      _showSnack('Fiado registrado por $customer (${_cart.length} producto${_cart.length == 1 ? '' : 's'})');
+      _showSnack(
+        'Fiado registrado por $customer (${_cart.length} producto${_cart.length == 1 ? '' : 's'})',
+      );
       _resetForm();
       return;
     }
@@ -489,7 +514,8 @@ class _SellScreenState extends State<SellScreen> {
 
     if (!mounted) return;
     final parts = <String>[PaymentMethod.label(_paymentMethod)];
-    if (_paymentMethod == PaymentMethod.transfer && _selectedAccountKey != null) {
+    if (_paymentMethod == PaymentMethod.transfer &&
+        _selectedAccountKey != null) {
       final acc = db.transferAccountsBox.get(_selectedAccountKey);
       if (acc != null) {
         parts.add('a ${acc.alias}');
@@ -511,18 +537,190 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   void _resetForm() {
-    _quantityController.text = '1';
     _customerController.clear();
     _commissionController.clear();
     _exchangeRateController.clear();
     _noteController.clear();
     setState(() {
-      _selectedProduct = null;
       _cart.clear();
       _paymentMethod = PaymentMethod.cash;
       _applyCommission = false;
       _selectedAccountKey = null;
     });
+  }
+}
+
+class _ProductTile extends StatelessWidget {
+  final Product product;
+  final int inCart;
+  final VoidCallback onTap;
+
+  const _ProductTile({
+    required this.product,
+    required this.inCart,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final soldOut = product.stock <= 0;
+    final hasImage =
+        product.imagePath != null && File(product.imagePath!).existsSync();
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: soldOut ? null : onTap,
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: soldOut
+                      ? AppColors.border
+                      : inCart > 0
+                      ? AppColors.emerald
+                      : AppColors.border,
+                  width: inCart > 0 ? 1.6 : 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: soldOut
+                            ? AppColors.border.withOpacity(0.3)
+                            : AppColors.navySoft,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(18),
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: hasImage
+                          ? Image.file(
+                              File(product.imagePath!),
+                              fit: BoxFit.cover,
+                            )
+                          : Center(
+                              child: Text(
+                                product.name.isEmpty
+                                    ? '?'
+                                    : String.fromCharCodes(
+                                        product.name.runes.take(1),
+                                      ).toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  color: soldOut
+                                      ? AppColors.textSecondary
+                                      : AppColors.navy,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: soldOut
+                                ? AppColors.textSecondary
+                                : AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatMoney(product.sellPrice),
+                          style: TextStyle(
+                            color: soldOut
+                                ? AppColors.textSecondary
+                                : AppColors.navy,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          soldOut ? 'Agotado' : 'Stock: ${product.stock}',
+                          style: TextStyle(
+                            color: soldOut
+                                ? AppColors.danger
+                                : AppColors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: soldOut ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                        Icon(
+                          Icons.add_circle,
+                          size: 22,
+                          color: soldOut
+                              ? AppColors.border
+                              : inCart > 0
+                              ? AppColors.emerald
+                              : AppColors.navy,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (inCart > 0)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.emerald,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    'x$inCart',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -541,7 +739,9 @@ class _CartLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unitPrice = isOwnExpense ? item.product.buyPrice : item.product.sellPrice;
+    final unitPrice = isOwnExpense
+        ? item.product.buyPrice
+        : item.product.sellPrice;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -560,7 +760,7 @@ class _CartLine extends StatelessWidget {
                   children: [
                     Text(
                       item.product.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
@@ -571,14 +771,17 @@ class _CartLine extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${formatMoney(unitPrice)} ${isOwnExpense ? '(costo)' : ''}',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: onRemove,
-                icon: const Icon(Icons.close, color: AppColors.danger, size: 20),
+                icon: Icon(Icons.close, color: AppColors.danger, size: 20),
               ),
             ],
           ),
@@ -587,13 +790,13 @@ class _CartLine extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: () => onChange(-1),
-                icon: const Icon(Icons.remove_circle_outline, color: AppColors.navy),
+                icon: Icon(Icons.remove_circle_outline, color: AppColors.navy),
               ),
               Expanded(
                 child: Text(
                   '${item.quantity} u',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
@@ -602,12 +805,12 @@ class _CartLine extends StatelessWidget {
               ),
               IconButton(
                 onPressed: () => onChange(1),
-                icon: const Icon(Icons.add_circle_outline, color: AppColors.navy),
+                icon: Icon(Icons.add_circle_outline, color: AppColors.navy),
               ),
               const SizedBox(width: 8),
               Text(
                 formatMoney(unitPrice * item.quantity),
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
@@ -632,7 +835,7 @@ class _MethodSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Forma de pago',
           style: TextStyle(
             color: AppColors.textPrimary,
@@ -722,7 +925,11 @@ class _MethodChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: isSelected ? Colors.white : AppColors.navy),
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.white : AppColors.navy,
+              ),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -758,7 +965,10 @@ class _SaleSummaryCard extends StatelessWidget {
     final isOwnExpense = paymentMethod == PaymentMethod.ownExpense;
     final total = cart.fold(
       0.0,
-      (s, i) => s + i.quantity * (isOwnExpense ? i.product.buyPrice : i.product.sellPrice),
+      (s, i) =>
+          s +
+          i.quantity *
+              (isOwnExpense ? i.product.buyPrice : i.product.sellPrice),
     );
     final profit = cart.fold(
       0.0,
@@ -767,7 +977,10 @@ class _SaleSummaryCard extends StatelessWidget {
     final count = cart.fold(0, (s, i) => s + i.quantity);
     final net = total - commission;
     final isCredit = paymentMethod == PaymentMethod.credit;
-    final isDollar = paymentMethod == PaymentMethod.dollar && exchangeRate != null && exchangeRate! > 0;
+    final isDollar =
+        paymentMethod == PaymentMethod.dollar &&
+        exchangeRate != null &&
+        exchangeRate! > 0;
     final usdTotal = isDollar ? total / exchangeRate! : 0.0;
 
     if (cart.isEmpty) {
@@ -778,9 +991,13 @@ class _SaleSummaryCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.border),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.shopping_cart_outlined, color: AppColors.textSecondary, size: 24),
+            Icon(
+              Icons.shopping_cart_outlined,
+              color: AppColors.textSecondary,
+              size: 24,
+            ),
             SizedBox(width: 12),
             Text(
               'El carrito está vacío. Agrega productos.',
@@ -800,8 +1017,8 @@ class _SaleSummaryCard extends StatelessWidget {
           colors: isCredit
               ? [AppColors.turquoiseSoft, AppColors.navySoft]
               : isOwnExpense
-                  ? [AppColors.warningSoft, AppColors.navySoft]
-                  : [AppColors.navySoft, AppColors.emeraldSoft],
+              ? [AppColors.warningSoft, AppColors.navySoft]
+              : [AppColors.navySoft, AppColors.emeraldSoft],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.navy.withOpacity(0.15)),
@@ -811,10 +1028,16 @@ class _SaleSummaryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Productos en carrito', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              Text(
+                'Productos en carrito',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
               Text(
                 '$count',
-                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -822,12 +1045,17 @@ class _SaleSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isOwnExpense ? 'Costo unitario promedio' : 'Precio unitario promedio',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                isOwnExpense
+                    ? 'Costo unitario promedio'
+                    : 'Precio unitario promedio',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
               Text(
                 formatMoney(count > 0 ? total / count : 0),
-                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -836,12 +1064,24 @@ class _SaleSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isOwnExpense ? 'Total gasto propio' : isCredit ? 'Total a deber' : 'Total a Pagar',
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                isOwnExpense
+                    ? 'Total gasto propio'
+                    : isCredit
+                    ? 'Total a deber'
+                    : 'Total a Pagar',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
               ),
               Text(
                 formatMoney(total),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.navy),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navy,
+                ),
               ),
             ],
           ),
@@ -850,10 +1090,20 @@ class _SaleSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Se descuenta de tu inversión', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  'Se descuenta de tu inversión',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 Text(
                   '-${formatMoney(total)}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.warning),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.warning,
+                  ),
                 ),
               ],
             ),
@@ -863,10 +1113,20 @@ class _SaleSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Equivalente en USD', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  'Equivalente en USD',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 Text(
                   '\$${usdTotal.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.navy),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navy,
+                  ),
                 ),
               ],
             ),
@@ -876,10 +1136,20 @@ class _SaleSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Comisión', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  'Comisión',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 Text(
                   '-${formatMoney(commission)}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.danger),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.danger,
+                  ),
                 ),
               ],
             ),
@@ -887,10 +1157,20 @@ class _SaleSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Neto recibido', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  'Neto recibido',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 Text(
                   formatMoney(net),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.emerald),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.emerald,
+                  ),
                 ),
               ],
             ),
@@ -900,13 +1180,20 @@ class _SaleSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'No genera ganancia',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-                const Text(
+                Text(
                   'Gasto propio',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.warning),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.warning,
+                  ),
                 ),
               ],
             )
@@ -914,13 +1201,20 @@ class _SaleSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Ganancia estimada',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 Text(
                   '+${formatMoney(profit)}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.emerald),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.emerald,
+                  ),
                 ),
               ],
             ),
@@ -955,9 +1249,9 @@ class _TransferAccountPicker extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.info_outline, color: AppColors.warning, size: 22),
+            Icon(Icons.info_outline, color: AppColors.warning, size: 22),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
                 'No tienes cuentas de transferencia guardadas.',
                 style: TextStyle(
@@ -984,7 +1278,8 @@ class _TransferAccountPicker extends StatelessWidget {
             orElse: () => accounts.first,
           );
     final effective = selected ?? accounts.first;
-    final hasQr = effective.qrImagePath.isNotEmpty &&
+    final hasQr =
+        effective.qrImagePath.isNotEmpty &&
         File(effective.qrImagePath).existsSync();
 
     return Container(
@@ -999,9 +1294,13 @@ class _TransferAccountPicker extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.account_balance_outlined, color: AppColors.navy, size: 20),
+              Icon(
+                Icons.account_balance_outlined,
+                color: AppColors.navy,
+                size: 20,
+              ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Cuenta para recibir el pago',
                   style: TextStyle(
@@ -1037,8 +1336,12 @@ class _TransferAccountPicker extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: hasQr
                     ? Image.file(File(effective.qrImagePath), fit: BoxFit.cover)
-                    : const Center(
-                        child: Icon(Icons.qr_code_2, color: AppColors.navy, size: 40),
+                    : Center(
+                        child: Icon(
+                          Icons.qr_code_2,
+                          color: AppColors.navy,
+                          size: 40,
+                        ),
                       ),
               ),
               const SizedBox(width: 12),
@@ -1048,7 +1351,7 @@ class _TransferAccountPicker extends StatelessWidget {
                   children: [
                     Text(
                       effective.alias,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
@@ -1059,7 +1362,7 @@ class _TransferAccountPicker extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       effective.bankName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -1068,7 +1371,7 @@ class _TransferAccountPicker extends StatelessWidget {
                     const SizedBox(height: 4),
                     SelectableText(
                       effective.cardNumber,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 13,
                         fontFamily: 'monospace',
@@ -1081,7 +1384,10 @@ class _TransferAccountPicker extends StatelessWidget {
                       icon: const Icon(Icons.fullscreen, size: 16),
                       label: const Text('Ver QR'),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         textStyle: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -1107,7 +1413,7 @@ class _TransferAccountPicker extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Text(
                   'Selecciona una cuenta',
@@ -1123,14 +1429,17 @@ class _TransferAccountPicker extends StatelessWidget {
                   shrinkWrap: true,
                   itemCount: accounts.length,
                   separatorBuilder: (context, index) =>
-                      const Divider(height: 1, color: AppColors.border),
+                      Divider(height: 1, color: AppColors.border),
                   itemBuilder: (context, index) {
                     final acc = accounts[index];
                     return ListTile(
-                      leading: const Icon(Icons.account_balance_outlined, color: AppColors.navy),
+                      leading: Icon(
+                        Icons.account_balance_outlined,
+                        color: AppColors.navy,
+                      ),
                       title: Text(
                         acc.alias,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
                         ),
@@ -1141,7 +1450,10 @@ class _TransferAccountPicker extends StatelessWidget {
                       ),
                       trailing: acc.isDefault
                           ? Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.navy,
                                 borderRadius: BorderRadius.circular(8),
@@ -1183,7 +1495,8 @@ class _TransferAccountPicker extends StatelessWidget {
   }
 
   void _showQrFull(BuildContext context, TransferAccount account) {
-    final hasQr = account.qrImagePath.isNotEmpty &&
+    final hasQr =
+        account.qrImagePath.isNotEmpty &&
         File(account.qrImagePath).existsSync();
     showDialog(
       context: context,
@@ -1197,7 +1510,7 @@ class _TransferAccountPicker extends StatelessWidget {
             children: [
               Text(
                 account.alias,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
@@ -1207,10 +1520,7 @@ class _TransferAccountPicker extends StatelessWidget {
               Text(
                 '${account.bankName} · ${account.cardNumber}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
               const SizedBox(height: 16),
               Container(
@@ -1224,8 +1534,12 @@ class _TransferAccountPicker extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: hasQr
                     ? Image.file(File(account.qrImagePath), fit: BoxFit.contain)
-                    : const Center(
-                        child: Icon(Icons.qr_code_2, size: 96, color: AppColors.navy),
+                    : Center(
+                        child: Icon(
+                          Icons.qr_code_2,
+                          size: 96,
+                          color: AppColors.navy,
+                        ),
                       ),
               ),
               const SizedBox(height: 12),

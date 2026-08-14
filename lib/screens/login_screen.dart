@@ -72,9 +72,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _goToMain() {
     context.read<AuthService>().markLoggedIn();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
   }
 
   @override
@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Bienvenido',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -117,9 +117,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(Icons.phone_android, color: AppColors.navy, size: 18),
+                            Icon(
+                              Icons.phone_android,
+                              color: AppColors.navy,
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'ID de tu dispositivo',
@@ -137,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Expanded(
                               child: Text(
                                 _deviceId ?? '',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -149,21 +153,30 @@ class _LoginScreenState extends State<LoginScreen> {
                               tooltip: 'Copiar ID',
                               onPressed: () async {
                                 if (_deviceId == null) return;
-                                await Clipboard.setData(ClipboardData(text: _deviceId!));
+                                await Clipboard.setData(
+                                  ClipboardData(text: _deviceId!),
+                                );
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('ID copiado')),
                                   );
                                 }
                               },
-                              icon: const Icon(Icons.copy, size: 18, color: AppColors.navy),
+                              icon: Icon(
+                                Icons.copy,
+                                size: 18,
+                                color: AppColors.navy,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Envía este ID al vendedor para activar tu licencia.',
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -172,7 +185,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: _controller,
                     textInputAction: TextInputAction.done,
-                    inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+                    inputFormatters: [
+                      FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                    ],
                     onSubmitted: (_) => _submit(),
                     decoration: const InputDecoration(
                       labelText: 'Código de licencia',
@@ -184,7 +199,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       _error!,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: AppColors.danger,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -197,7 +216,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('Entrar'),
                   ),

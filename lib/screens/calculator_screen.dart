@@ -253,9 +253,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back, color: AppColors.navy),
+          icon: Icon(Icons.arrow_back, color: AppColors.navy),
         ),
-        title: const Text(
+        title: Text(
           'Calculadora',
           style: TextStyle(
             color: AppColors.textPrimary,
@@ -282,13 +282,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     top: -4,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 1),
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.danger,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       constraints: const BoxConstraints(
-                          minWidth: 16, minHeight: 16),
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
                       child: Text(
                         '${_history.length}',
                         textAlign: TextAlign.center,
@@ -389,7 +393,7 @@ class _Keypad extends StatelessWidget {
                     key: ValueKey(upper),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -403,7 +407,7 @@ class _Keypad extends StatelessWidget {
                   child: Text(
                     main,
                     maxLines: 1,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.navy,
                       fontSize: 52,
                       fontWeight: FontWeight.w800,
@@ -420,85 +424,95 @@ class _Keypad extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               children: [
-                _Row(children: [
-                  _Key(
-                    label: 'C',
-                    onTap: onClear,
-                    color: AppColors.surface,
-                    fg: AppColors.danger,
-                  ),
-                  _Key(
-                    label: '⌫',
-                    onTap: onBackspace,
-                    color: AppColors.surface,
-                    fg: AppColors.textSecondary,
-                  ),
-                  _Key(
-                    label: '%',
-                    onTap: onPercent,
-                    color: AppColors.surface,
-                    fg: AppColors.textPrimary,
-                  ),
-                  _Key(
-                    label: '÷',
-                    onTap: () => onOp(CalcOp.div),
-                    color: AppColors.navy,
-                    fg: Colors.white,
-                    big: true,
-                  ),
-                ]),
+                _Row(
+                  children: [
+                    _Key(
+                      label: 'C',
+                      onTap: onClear,
+                      color: AppColors.surface,
+                      fg: AppColors.danger,
+                    ),
+                    _Key(
+                      label: '⌫',
+                      onTap: onBackspace,
+                      color: AppColors.surface,
+                      fg: AppColors.textSecondary,
+                    ),
+                    _Key(
+                      label: '%',
+                      onTap: onPercent,
+                      color: AppColors.surface,
+                      fg: AppColors.textPrimary,
+                    ),
+                    _Key(
+                      label: '÷',
+                      onTap: () => onOp(CalcOp.div),
+                      color: AppColors.navy,
+                      fg: Colors.white,
+                      big: true,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
-                _Row(children: [
-                  _Key(label: '7', onTap: () => onDigit('7')),
-                  _Key(label: '8', onTap: () => onDigit('8')),
-                  _Key(label: '9', onTap: () => onDigit('9')),
-                  _Key(
-                    label: '×',
-                    onTap: () => onOp(CalcOp.mul),
-                    color: AppColors.navy,
-                    fg: Colors.white,
-                    big: true,
-                  ),
-                ]),
+                _Row(
+                  children: [
+                    _Key(label: '7', onTap: () => onDigit('7')),
+                    _Key(label: '8', onTap: () => onDigit('8')),
+                    _Key(label: '9', onTap: () => onDigit('9')),
+                    _Key(
+                      label: '×',
+                      onTap: () => onOp(CalcOp.mul),
+                      color: AppColors.navy,
+                      fg: Colors.white,
+                      big: true,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
-                _Row(children: [
-                  _Key(label: '4', onTap: () => onDigit('4')),
-                  _Key(label: '5', onTap: () => onDigit('5')),
-                  _Key(label: '6', onTap: () => onDigit('6')),
-                  _Key(
-                    label: '−',
-                    onTap: () => onOp(CalcOp.sub),
-                    color: AppColors.navy,
-                    fg: Colors.white,
-                    big: true,
-                  ),
-                ]),
+                _Row(
+                  children: [
+                    _Key(label: '4', onTap: () => onDigit('4')),
+                    _Key(label: '5', onTap: () => onDigit('5')),
+                    _Key(label: '6', onTap: () => onDigit('6')),
+                    _Key(
+                      label: '−',
+                      onTap: () => onOp(CalcOp.sub),
+                      color: AppColors.navy,
+                      fg: Colors.white,
+                      big: true,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
-                _Row(children: [
-                  _Key(label: '1', onTap: () => onDigit('1')),
-                  _Key(label: '2', onTap: () => onDigit('2')),
-                  _Key(label: '3', onTap: () => onDigit('3')),
-                  _Key(
-                    label: '+',
-                    onTap: () => onOp(CalcOp.add),
-                    color: AppColors.navy,
-                    fg: Colors.white,
-                    big: true,
-                  ),
-                ]),
+                _Row(
+                  children: [
+                    _Key(label: '1', onTap: () => onDigit('1')),
+                    _Key(label: '2', onTap: () => onDigit('2')),
+                    _Key(label: '3', onTap: () => onDigit('3')),
+                    _Key(
+                      label: '+',
+                      onTap: () => onOp(CalcOp.add),
+                      color: AppColors.navy,
+                      fg: Colors.white,
+                      big: true,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
-                _Row(children: [
-                  _Key(label: '±', onTap: onToggleSign),
-                  _Key(label: '0', onTap: () => onDigit('0')),
-                  _Key(label: '.', onTap: onDot),
-                  _Key(
-                    label: '=',
-                    onTap: onEquals,
-                    color: AppColors.emerald,
-                    fg: Colors.white,
-                    big: true,
-                  ),
-                ]),
+                _Row(
+                  children: [
+                    _Key(label: '±', onTap: onToggleSign),
+                    _Key(label: '0', onTap: () => onDigit('0')),
+                    _Key(label: '.', onTap: onDot),
+                    _Key(
+                      label: '=',
+                      onTap: onEquals,
+                      color: AppColors.emerald,
+                      fg: Colors.white,
+                      big: true,
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -585,7 +599,7 @@ class _HistoryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (history.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Column(
@@ -608,7 +622,7 @@ class _HistoryView extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
           child: Row(
             children: [
-              const Text(
+              Text(
                 'Historial de la sesión',
                 style: TextStyle(
                   color: AppColors.textPrimary,
@@ -619,9 +633,12 @@ class _HistoryView extends StatelessWidget {
               const Spacer(),
               TextButton.icon(
                 onPressed: onClear,
-                icon: const Icon(Icons.delete_sweep_outlined,
-                    size: 16, color: AppColors.danger),
-                label: const Text(
+                icon: Icon(
+                  Icons.delete_sweep_outlined,
+                  size: 16,
+                  color: AppColors.danger,
+                ),
+                label: Text(
                   'Limpiar',
                   style: TextStyle(color: AppColors.danger),
                 ),
@@ -634,7 +651,7 @@ class _HistoryView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             itemCount: history.length,
             separatorBuilder: (_, _) =>
-                const Divider(height: 1, color: AppColors.border),
+                Divider(height: 1, color: AppColors.border),
             itemBuilder: (context, i) {
               final e = history[i];
               return ListTile(
@@ -642,7 +659,7 @@ class _HistoryView extends StatelessWidget {
                 onTap: () => onTap(e),
                 title: Text(
                   e.expression,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -652,7 +669,7 @@ class _HistoryView extends StatelessWidget {
                 ),
                 subtitle: Text(
                   e.result,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.navy,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -660,7 +677,7 @@ class _HistoryView extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                trailing: const Icon(
+                trailing: Icon(
                   Icons.content_paste_outlined,
                   color: AppColors.textSecondary,
                   size: 18,

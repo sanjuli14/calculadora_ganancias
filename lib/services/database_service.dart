@@ -13,6 +13,7 @@ import '../models/debt.dart';
 import '../models/payment.dart';
 import '../models/transfer_account.dart';
 import '../models/expense.dart';
+import '../theme/app_palettes.dart';
 
 class DatabaseService {
   // Versión del esquema de la base de datos.
@@ -38,7 +39,8 @@ class DatabaseService {
   Box<String> get categoriesBox => _categoriesBox;
   Box<Expense> get expensesBox => _expensesBox;
 
-  bool get onboardingSeen => _metaBox.get('onboarding_seen', defaultValue: false) as bool;
+  bool get onboardingSeen =>
+      _metaBox.get('onboarding_seen', defaultValue: false) as bool;
 
   Future<void> markOnboardingSeen() async {
     await _metaBox.put('onboarding_seen', true);
@@ -47,6 +49,49 @@ class DatabaseService {
   // ValorListenable de la box de metadatos para refrescar la UI cuando
   // cambian campos como la inversión total.
   ValueListenable<Box> get metaListenable => _metaBox.listenable();
+
+  // ---- Apariencia (tema, paleta, moneda) ----
+  static const String _appearanceModeKey = 'appearance_mode';
+  static const String _appearancePaletteKey = 'appearance_palette';
+  static const String _appearanceCurrencyKey = 'appearance_currency';
+
+  AppThemeMode get appearanceMode {
+    final value = _metaBox.get(_appearanceModeKey, defaultValue: 'light');
+    switch (value) {
+      case 'dark':
+        return AppThemeMode.dark;
+      case 'highContrast':
+        return AppThemeMode.highContrast;
+      case 'light':
+      default:
+        return AppThemeMode.light;
+    }
+  }
+
+  AppPalette get appearancePalette {
+    return paletteById(
+      _metaBox.get(_appearancePaletteKey, defaultValue: 'ocean') as String,
+    );
+  }
+
+  String get appearanceCurrency =>
+      _metaBox.get(_appearanceCurrencyKey, defaultValue: 'CUP') as String;
+
+  Future<void> setAppearance({
+    AppThemeMode? mode,
+    String? paletteId,
+    String? currency,
+  }) async {
+    if (mode != null) {
+      await _metaBox.put(_appearanceModeKey, mode.name);
+    }
+    if (paletteId != null) {
+      await _metaBox.put(_appearancePaletteKey, paletteId);
+    }
+    if (currency != null) {
+      await _metaBox.put(_appearanceCurrencyKey, currency);
+    }
+  }
 
   // Total de la inversión que se hizo (campo manual, configurable por el usuario).
   double get totalInvestment =>
@@ -73,17 +118,22 @@ class DatabaseService {
   String get publicationBusinessName =>
       (_metaBox.get(_pubBusinessNameKey, defaultValue: 'Mi Negocio') as String);
 
-  String get publicationHeader => (_metaBox.get(
-        _pubHeaderKey,
-        defaultValue: '💢 *LOS MEJORES PRECIOS AQUI* ✅\n'
-            '💢 *TODOS LOS PRODUCTOS EN EFECTIVO*💢 \n\n'
-            '💯 *Disponible*:\n',
-      ) as String);
+  String get publicationHeader =>
+      (_metaBox.get(
+            _pubHeaderKey,
+            defaultValue:
+                '💢 *LOS MEJORES PRECIOS AQUI* ✅\n'
+                '💢 *TODOS LOS PRODUCTOS EN EFECTIVO*💢 \n\n'
+                '💯 *Disponible*:\n',
+          )
+          as String);
 
-  String get publicationFooter => (_metaBox.get(
-        _pubFooterKey,
-        defaultValue: '\n🚲 *DOMICILIO DISPONIBLE Y GRATIS* 🚲',
-      ) as String);
+  String get publicationFooter =>
+      (_metaBox.get(
+            _pubFooterKey,
+            defaultValue: '\n🚲 *DOMICILIO DISPONIBLE Y GRATIS* 🚲',
+          )
+          as String);
 
   String get publicationPhones =>
       (_metaBox.get(_pubPhonesKey, defaultValue: '') as String);
@@ -140,16 +190,21 @@ class DatabaseService {
   // Lee el contenido de una copia guardada por su URI (sin salir de la app).
   Future<String> _readBackupByUri(String uriString) async {
     final dir = await getTemporaryDirectory();
-    final tempFile = File('${dir.path}/backup_restore_${DateTime.now().millisecondsSinceEpoch}.json');
-    final ok = await MediaStore()
-        .readFileUsingUri(uriString: uriString, tempFilePath: tempFile.path);
+    final tempFile = File(
+      '${dir.path}/backup_restore_${DateTime.now().millisecondsSinceEpoch}.json',
+    );
+    final ok = await MediaStore().readFileUsingUri(
+      uriString: uriString,
+      tempFilePath: tempFile.path,
+    );
     if (!ok || !await tempFile.exists()) {
       throw const FormatException('No se pudo leer la copia desde el teléfono');
     }
     return await tempFile.readAsString();
   }
 
-  Future<void> init() async {    await Hive.initFlutter();
+  Future<void> init() async {
+    await Hive.initFlutter();
     Hive.registerAdapter(ProductAdapter());
     Hive.registerAdapter(SaleAdapter());
     Hive.registerAdapter(CashCountAdapter());
@@ -172,7 +227,9 @@ class DatabaseService {
     _salesBox = await _openBoxSafely<Sale>('sales');
     _cashboxBox = await _openBoxSafely<CashCount>('cashbox');
     _debtsBox = await _openBoxSafely<Debt>('debts');
-    _transferAccountsBox = await _openBoxSafely<TransferAccount>('transfer_accounts');
+    _transferAccountsBox = await _openBoxSafely<TransferAccount>(
+      'transfer_accounts',
+    );
     _categoriesBox = await _openBoxSafely<String>('categories');
     _expensesBox = await _openBoxSafely<Expense>('expenses');
 
@@ -210,14 +267,18 @@ class DatabaseService {
   }
 
   // ValueListenable for UI updates
-  ValueListenable<Box<Product>> get productsListenable => _productsBox.listenable();
+  ValueListenable<Box<Product>> get productsListenable =>
+      _productsBox.listenable();
   ValueListenable<Box<Sale>> get salesListenable => _salesBox.listenable();
-  ValueListenable<Box<CashCount>> get cashboxListenable => _cashboxBox.listenable();
+  ValueListenable<Box<CashCount>> get cashboxListenable =>
+      _cashboxBox.listenable();
   ValueListenable<Box<Debt>> get debtsListenable => _debtsBox.listenable();
   ValueListenable<Box<TransferAccount>> get transferAccountsListenable =>
       _transferAccountsBox.listenable();
-  ValueListenable<Box<String>> get categoriesListenable => _categoriesBox.listenable();
-  ValueListenable<Box<Expense>> get expensesListenable => _expensesBox.listenable();
+  ValueListenable<Box<String>> get categoriesListenable =>
+      _categoriesBox.listenable();
+  ValueListenable<Box<Expense>> get expensesListenable =>
+      _expensesBox.listenable();
 
   // Product CRUD
   Future<void> addProduct(Product product) async {
@@ -244,7 +305,9 @@ class DatabaseService {
   Future<void> addCategory(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
-    if (_categoriesBox.values.any((c) => c.toLowerCase() == trimmed.toLowerCase())) {
+    if (_categoriesBox.values.any(
+      (c) => c.toLowerCase() == trimmed.toLowerCase(),
+    )) {
       return;
     }
     await _categoriesBox.add(trimmed);
@@ -299,7 +362,7 @@ class DatabaseService {
   List<Sale> getSalesBetween(DateTime start, DateTime end) {
     return _salesBox.values.where((sale) {
       return sale.date.isAfter(start.subtract(const Duration(days: 1))) &&
-             sale.date.isBefore(end.add(const Duration(days: 1)));
+          sale.date.isBefore(end.add(const Duration(days: 1)));
     }).toList();
   }
 
@@ -310,7 +373,9 @@ class DatabaseService {
     int daysSinceInventory = (now.weekday - inventoryDay) % 7;
     if (daysSinceInventory < 0) daysSinceInventory += 7;
     final currentInventory = now.subtract(Duration(days: daysSinceInventory));
-    final previousInventory = currentInventory.subtract(const Duration(days: 7));
+    final previousInventory = currentInventory.subtract(
+      const Duration(days: 7),
+    );
     return getSalesBetween(previousInventory, currentInventory);
   }
 
@@ -345,10 +410,7 @@ class DatabaseService {
       totalSales += sale.total;
       totalProfit += sale.profit;
     }
-    return {
-      'totalSales': totalSales,
-      'totalProfit': totalProfit,
-    };
+    return {'totalSales': totalSales, 'totalProfit': totalProfit};
   }
 
   // ---- Totales financieros ----
@@ -385,7 +447,8 @@ class DatabaseService {
     return _productsBox.values.where((p) => p.stock <= threshold).toList();
   }
 
-  int getLowStockCount({int threshold = 5}) => getLowStockProducts(threshold: threshold).length;
+  int getLowStockCount({int threshold = 5}) =>
+      getLowStockProducts(threshold: threshold).length;
 
   // ---- Caja contable ----
 
@@ -468,12 +531,14 @@ class DatabaseService {
   }) async {
     final debt = _debtsBox.get(debtKey);
     if (debt == null) return;
-    debt.payments.add(Payment(
-      amount: amount,
-      date: DateTime.now(),
-      method: method,
-      commissionAmount: commissionAmount,
-    ));
+    debt.payments.add(
+      Payment(
+        amount: amount,
+        date: DateTime.now(),
+        method: method,
+        commissionAmount: commissionAmount,
+      ),
+    );
     await debt.save();
   }
 
@@ -582,13 +647,15 @@ class DatabaseService {
       'cashbox': _cashboxBox.values.map((c) => c.toJson()).toList(),
       'debts': _debtsBox.values.map((d) => d.toJson()).toList(),
       'transferAccounts': _transferAccountsBox.values
-          .map((a) => {
-                'alias': a.alias,
-                'bankName': a.bankName,
-                'cardNumber': a.cardNumber,
-                'qrImagePath': a.qrImagePath,
-                'isDefault': a.isDefault,
-              })
+          .map(
+            (a) => {
+              'alias': a.alias,
+              'bankName': a.bankName,
+              'cardNumber': a.cardNumber,
+              'qrImagePath': a.qrImagePath,
+              'isDefault': a.isDefault,
+            },
+          )
           .toList(),
       'categories': _categoriesBox.values.toList().cast<String>(),
       'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
@@ -598,10 +665,14 @@ class DatabaseService {
 
     final jsonString = jsonEncode(backup);
     final directory = await getTemporaryDirectory();
-    final file = File('${directory.path}/backup_ganancias_${DateTime.now().millisecondsSinceEpoch}.json');
+    final file = File(
+      '${directory.path}/backup_ganancias_${DateTime.now().millisecondsSinceEpoch}.json',
+    );
     await file.writeAsString(jsonString);
 
-    await Share.shareXFiles([XFile(file.path)], text: 'Copia de seguridad - Cuentas Claras');
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], text: 'Copia de seguridad - Cuentas Claras');
   }
 
   // Genera el JSON de respaldo y lo guarda en la carpeta Descargas con nombre y fecha.
@@ -614,26 +685,29 @@ class DatabaseService {
         'sales': _salesBox.values.map((s) => s.toJson()).toList(),
         'cashbox': _cashboxBox.values.map((c) => c.toJson()).toList(),
         'debts': _debtsBox.values.map((d) => d.toJson()).toList(),
-      'transferAccounts': _transferAccountsBox.values
-          .map((a) => {
+        'transferAccounts': _transferAccountsBox.values
+            .map(
+              (a) => {
                 'alias': a.alias,
                 'bankName': a.bankName,
                 'cardNumber': a.cardNumber,
                 'qrImagePath': a.qrImagePath,
                 'isDefault': a.isDefault,
-              })
-          .toList(),
-      'categories': _categoriesBox.values.toList().cast<String>(),
-      'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
-      'totalInvestment': totalInvestment,
-      'date': DateTime.now().toIso8601String(),
-    };
+              },
+            )
+            .toList(),
+        'categories': _categoriesBox.values.toList().cast<String>(),
+        'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
+        'totalInvestment': totalInvestment,
+        'date': DateTime.now().toIso8601String(),
+      };
 
       final jsonString = jsonEncode(backup);
       final directory = await getTemporaryDirectory();
       final now = DateTime.now();
       String two(int n) => n.toString().padLeft(2, '0');
-      final fileName = 'cuentas_claras_${now.year}-${two(now.month)}-${two(now.day)}_${two(now.hour)}-${two(now.minute)}.json';
+      final fileName =
+          'cuentas_claras_${now.year}-${two(now.month)}-${two(now.day)}_${two(now.hour)}-${two(now.minute)}.json';
 
       final file = File('${directory.path}/$fileName');
       await file.writeAsString(jsonString);
@@ -685,7 +759,9 @@ class DatabaseService {
     // Fallback Android 10: ruta directa usada por el plugin al copiar.
     final external = await getExternalStorageDirectory();
     if (external != null) {
-      final f = File('${external.path}/Download/${MediaStore.appFolder}/$fileName');
+      final f = File(
+        '${external.path}/Download/${MediaStore.appFolder}/$fileName',
+      );
       if (await f.exists()) return f.uri.toString();
     }
     return null;
@@ -760,13 +836,15 @@ class DatabaseService {
       if (backup['transferAccounts'] is List) {
         final accounts = (backup['transferAccounts'] as List)
             .where((i) => i is Map)
-            .map((i) => TransferAccount(
-                  alias: (i['alias'] ?? '').toString(),
-                  bankName: (i['bankName'] ?? '').toString(),
-                  cardNumber: (i['cardNumber'] ?? '').toString(),
-                  qrImagePath: (i['qrImagePath'] ?? '').toString(),
-                  isDefault: i['isDefault'] == true,
-                ))
+            .map(
+              (i) => TransferAccount(
+                alias: (i['alias'] ?? '').toString(),
+                bankName: (i['bankName'] ?? '').toString(),
+                cardNumber: (i['cardNumber'] ?? '').toString(),
+                qrImagePath: (i['qrImagePath'] ?? '').toString(),
+                isDefault: i['isDefault'] == true,
+              ),
+            )
             .toList();
         if (accounts.isNotEmpty) {
           await _transferAccountsBox.addAll(accounts);
@@ -805,8 +883,9 @@ class DatabaseService {
         );
       }
     } else {
-      throw const FormatException('El archivo no es una copia de Cuentas Claras válida');
+      throw const FormatException(
+        'El archivo no es una copia de Cuentas Claras válida',
+      );
     }
   }
 }
-

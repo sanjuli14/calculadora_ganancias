@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:calcular_ganancias/services/database_service.dart';
 import 'package:calcular_ganancias/services/auth_service.dart';
+import 'package:calcular_ganancias/notifiers/theme_controller.dart';
 import 'package:calcular_ganancias/theme/app_theme.dart';
+import 'package:calcular_ganancias/theme/app_palettes.dart';
 import 'package:calcular_ganancias/screens/login_screen.dart';
 import 'package:calcular_ganancias/screens/main_screen.dart';
 import 'package:calcular_ganancias/screens/onboarding_screen.dart';
@@ -22,42 +24,39 @@ void main() async {
   final authService = AuthService();
   await authService.init();
 
-  final showOnboarding = !databaseService.onboardingSeen;
-  // Si ya hay una sesión activa (el teléfono conserva el login), se entra
-  // directo a la pantalla principal. Esto evita que al volver del selector
-  // de archivos (que puede reiniciar la app) se pida login otra vez.
-  final alreadyLoggedIn = authService.isLoggedIn;
+  final themeController = ThemeController(databaseService);
+  await themeController.init();
 
   runApp(
     MultiProvider(
       providers: [
         Provider<DatabaseService>.value(value: databaseService),
         Provider<AuthService>.value(value: authService),
+        ChangeNotifierProvider<ThemeController>.value(value: themeController),
       ],
-      child: MyApp(
-        showOnboarding: showOnboarding,
-        alreadyLoggedIn: alreadyLoggedIn,
-      ),
+      child: const MyApp(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
-  final bool showOnboarding;
-  final bool alreadyLoggedIn;
-
-  const MyApp({
-    super.key,
-    required this.showOnboarding,
-    required this.alreadyLoggedIn,
-  });
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
   Widget build(BuildContext context) {
+    final themeController = context.watch<ThemeController>();
+    final db = context.watch<DatabaseService>();
+    final auth = context.watch<AuthService>();
+
     Widget home;
-    if (showOnboarding) {
+    if (!db.onboardingSeen) {
       home = const OnboardingScreen();
-    } else if (alreadyLoggedIn) {
+    } else if (auth.isLoggedIn) {
       home = const MainScreen();
     } else {
       home = const LoginScreen();
@@ -66,7 +65,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Cuentas Claras',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
+      theme: AppTheme.forMode(themeController.mode),
+      themeMode: AppTheme.themeModeOf(themeController.mode),
+      darkTheme: AppTheme.forMode(AppThemeMode.dark),
       home: home,
     );
   }

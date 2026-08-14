@@ -16,9 +16,9 @@ class DailyInventoryScreen extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back, color: AppColors.navy),
+          icon: Icon(Icons.arrow_back, color: AppColors.navy),
         ),
-        title: const Text(
+        title: Text(
           'Inventario Diario',
           style: TextStyle(
             color: AppColors.textPrimary,
@@ -29,8 +29,10 @@ class DailyInventoryScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: ValueListenableBuilder<Box<Sale>>(
-          valueListenable: Provider.of<DatabaseService>(context, listen: false)
-              .salesListenable,
+          valueListenable: Provider.of<DatabaseService>(
+            context,
+            listen: false,
+          ).salesListenable,
           builder: (context, box, _) {
             final db = Provider.of<DatabaseService>(context);
             final allSales = box.values.toList().cast<Sale>();
@@ -41,16 +43,19 @@ class DailyInventoryScreen extends StatelessWidget {
 
             final groups = _groupByDay(allSales);
             final todaySales = db.getTodaySales();
-            final todayRevenue =
-                todaySales.fold(0.0, (s, x) => s + x.total);
-            final todayProfit =
-                todaySales.fold(0.0, (s, x) => s + x.profit);
-            final todayUnits =
-                todaySales.fold<int>(0, (s, x) => s + x.quantity);
+            final todayRevenue = todaySales.fold(0.0, (s, x) => s + x.total);
+            final todayProfit = todaySales.fold(0.0, (s, x) => s + x.profit);
+            final todayUnits = todaySales.fold<int>(
+              0,
+              (s, x) => s + x.quantity,
+            );
 
             final now = DateTime.now();
-            final todayKey = DateTime(now.year, now.month, now.day)
-                .millisecondsSinceEpoch;
+            final todayKey = DateTime(
+              now.year,
+              now.month,
+              now.day,
+            ).millisecondsSinceEpoch;
 
             return CustomScrollView(
               slivers: [
@@ -67,7 +72,7 @@ class DailyInventoryScreen extends StatelessWidget {
                           units: todayUnits,
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Historial por días',
                           style: TextStyle(
                             color: AppColors.textPrimary,
@@ -76,7 +81,7 @@ class DailyInventoryScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Toca un día para consultar sus ventas.',
                           style: TextStyle(
                             color: AppColors.textSecondary,
@@ -91,33 +96,30 @@ class DailyInventoryScreen extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final key = groups.keys.toList()[index];
-                        final sales = groups[key]!;
-                        final day = DateTime.fromMillisecondsSinceEpoch(key);
-                        final revenue =
-                            sales.fold(0.0, (s, x) => s + x.total);
-                        final profit =
-                            sales.fold(0.0, (s, x) => s + x.profit);
-                        final units =
-                            sales.fold<int>(0, (s, x) => s + x.quantity);
-                        return _DayCard(
-                          day: day,
-                          isToday: key == todayKey,
-                          salesCount: sales.length,
-                          units: units,
-                          revenue: revenue,
-                          profit: profit,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => _DaySalesScreen(day: day),
-                            ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final key = groups.keys.toList()[index];
+                      final sales = groups[key]!;
+                      final day = DateTime.fromMillisecondsSinceEpoch(key);
+                      final revenue = sales.fold(0.0, (s, x) => s + x.total);
+                      final profit = sales.fold(0.0, (s, x) => s + x.profit);
+                      final units = sales.fold<int>(
+                        0,
+                        (s, x) => s + x.quantity,
+                      );
+                      return _DayCard(
+                        day: day,
+                        isToday: key == todayKey,
+                        salesCount: sales.length,
+                        units: units,
+                        revenue: revenue,
+                        profit: profit,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => _DaySalesScreen(day: day),
                           ),
-                        );
-                      },
-                      childCount: groups.length,
-                    ),
+                        ),
+                      );
+                    }, childCount: groups.length),
                   ),
                 ),
               ],
@@ -129,7 +131,7 @@ class DailyInventoryScreen extends StatelessWidget {
   }
 
   Widget _emptyState() {
-    return const Center(
+    return Center(
       child: Padding(
         padding: EdgeInsets.all(24),
         child: Column(
@@ -165,9 +167,7 @@ class DailyInventoryScreen extends StatelessWidget {
     final keys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
     final sorted = <int, List<Sale>>{};
     for (final key in keys) {
-      final list = groups[key]!..sort(
-          (a, b) => b.date.compareTo(a.date),
-        );
+      final list = groups[key]!..sort((a, b) => b.date.compareTo(a.date));
       sorted[key] = list;
     }
     return sorted;
@@ -193,7 +193,7 @@ class _TodayCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.navy, AppColors.emerald],
@@ -301,10 +301,8 @@ class _DayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr =
-        DateFormat('EEEE, d MMMM', 'es').format(day);
-    final dateText =
-        '${dateStr[0].toUpperCase()}${dateStr.substring(1)}';
+    final dateStr = DateFormat('EEEE, d MMMM', 'es').format(day);
+    final dateText = '${dateStr[0].toUpperCase()}${dateStr.substring(1)}';
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -341,7 +339,7 @@ class _DayCard extends StatelessWidget {
                 children: [
                   Text(
                     isToday ? 'Hoy • $dateText' : dateText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
@@ -352,7 +350,7 @@ class _DayCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '$salesCount venta${salesCount == 1 ? '' : 's'} • $units u',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
                     ),
@@ -365,7 +363,7 @@ class _DayCard extends StatelessWidget {
               children: [
                 Text(
                   '+${formatMoney(revenue)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -373,7 +371,7 @@ class _DayCard extends StatelessWidget {
                 ),
                 Text(
                   'ganancia ${formatMoney(profit)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.emerald,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -382,11 +380,7 @@ class _DayCard extends StatelessWidget {
               ],
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textSecondary,
-              size: 20,
-            ),
+            Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
           ],
         ),
       ),
@@ -409,11 +403,11 @@ class _DaySalesScreen extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back, color: AppColors.navy),
+          icon: Icon(Icons.arrow_back, color: AppColors.navy),
         ),
         title: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 16,
@@ -426,8 +420,7 @@ class _DaySalesScreen extends StatelessWidget {
           final current = db.getSalesForDay(day);
           final currentRevenue = current.fold(0.0, (s, x) => s + x.total);
           final currentProfit = current.fold(0.0, (s, x) => s + x.profit);
-          final currentUnits =
-              current.fold<int>(0, (s, x) => s + x.quantity);
+          final currentUnits = current.fold<int>(0, (s, x) => s + x.quantity);
 
           return CustomScrollView(
             slivers: [
@@ -489,7 +482,7 @@ class _DaySalesScreen extends StatelessWidget {
                 ),
               ),
               if (current.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(20, 40, 20, 24),
                     child: Center(
@@ -504,20 +497,13 @@ class _DaySalesScreen extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final sale = current[current.length - 1 - index];
-                        return _DaySaleTile(
-                          sale: sale,
-                          onDelete: () => _confirmDelete(
-                            context,
-                            db,
-                            sale.key,
-                          ),
-                        );
-                      },
-                      childCount: current.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final sale = current[current.length - 1 - index];
+                      return _DaySaleTile(
+                        sale: sale,
+                        onDelete: () => _confirmDelete(context, db, sale.key),
+                      );
+                    }, childCount: current.length),
                   ),
                 ),
             ],
@@ -537,7 +523,8 @@ class _DaySalesScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Confirmar eliminación'),
         content: const Text(
-            '¿Eliminar esta venta? El stock del producto será restaurado.'),
+          '¿Eliminar esta venta? El stock del producto será restaurado.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -545,10 +532,7 @@ class _DaySalesScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: AppColors.danger),
-            ),
+            child: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -556,9 +540,9 @@ class _DaySalesScreen extends StatelessWidget {
     if (confirmed == true) {
       await db.deleteSale(key);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Venta eliminada')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Venta eliminada')));
       }
     }
   }
@@ -569,11 +553,8 @@ class _DetailStat extends StatelessWidget {
   final String value;
   final Color valueColor;
 
-  const _DetailStat({
-    required this.label,
-    required this.value,
-    this.valueColor = AppColors.textPrimary,
-  });
+  _DetailStat({required this.label, required this.value, Color? valueColor})
+    : valueColor = valueColor ?? AppColors.textPrimary;
 
   @override
   Widget build(BuildContext context) {
@@ -590,7 +571,7 @@ class _DetailStat extends StatelessWidget {
         ),
         Text(
           label,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
         ),
       ],
     );
@@ -640,7 +621,7 @@ class _DaySaleTile extends StatelessWidget {
               children: [
                 Text(
                   sale.productName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -651,7 +632,7 @@ class _DaySaleTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$timeStr • ${sale.quantity} u × ${formatMoney(sale.unitSellPrice)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
@@ -677,7 +658,7 @@ class _DaySaleTile extends StatelessWidget {
               if (!sale.isOwnExpense) ...[
                 Text(
                   'ganancia ${formatMoney(sale.profit)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.emerald,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,

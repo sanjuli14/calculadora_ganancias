@@ -82,7 +82,7 @@ class DashboardScreen extends StatelessWidget {
                                                       Alignment.centerLeft,
                                                   child: Text(
                                                     '$greeting 👋',
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                       color:
                                                           AppColors.textPrimary,
                                                       fontSize: 22,
@@ -95,7 +95,7 @@ class DashboardScreen extends StatelessWidget {
                                                 Text(
                                                   dateStr[0].toUpperCase() +
                                                       dateStr.substring(1),
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     color:
                                                         AppColors.textSecondary,
                                                     fontSize: 13,
@@ -122,11 +122,11 @@ class DashboardScreen extends StatelessWidget {
                                             style: IconButton.styleFrom(
                                               backgroundColor:
                                                   AppColors.surface,
-                                              side: const BorderSide(
+                                              side: BorderSide(
                                                 color: AppColors.border,
                                               ),
                                             ),
-                                            icon: const Icon(
+                                            icon: Icon(
                                               Icons.calendar_month,
                                               color: AppColors.navy,
                                             ),
@@ -146,11 +146,11 @@ class DashboardScreen extends StatelessWidget {
                                             style: IconButton.styleFrom(
                                               backgroundColor:
                                                   AppColors.surface,
-                                              side: const BorderSide(
+                                              side: BorderSide(
                                                 color: AppColors.border,
                                               ),
                                             ),
-                                            icon: const Icon(
+                                            icon: Icon(
                                               Icons.help_outline,
                                               color: AppColors.navy,
                                             ),
@@ -274,7 +274,7 @@ class DashboardScreen extends StatelessWidget {
                                       ),
                                       child: Row(
                                         children: [
-                                          const Icon(
+                                          Icon(
                                             Icons.warning_amber_rounded,
                                             color: AppColors.warning,
                                           ),
@@ -282,7 +282,7 @@ class DashboardScreen extends StatelessWidget {
                                           Expanded(
                                             child: Text(
                                               '${lowStock.length} producto${lowStock.length == 1 ? '' : 's'} con stock bajo o agotado.',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 color: AppColors.textPrimary,
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 13,
@@ -382,7 +382,7 @@ class DashboardScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Ingresa el total de dinero que has invertido en tu negocio.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
@@ -441,7 +441,7 @@ class _HeroCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.navy, AppColors.turquoise],
@@ -542,7 +542,7 @@ class _InvestmentCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [AppColors.turquoise, AppColors.emerald],
@@ -656,7 +656,7 @@ class _QuickAction extends StatelessWidget {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -693,11 +693,15 @@ class _RecentSaleTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: sale.isOwnExpense ? AppColors.warningSoft : AppColors.emeraldSoft,
+              color: sale.isOwnExpense
+                  ? AppColors.warningSoft
+                  : AppColors.emeraldSoft,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              sale.isOwnExpense ? Icons.person_outline : Icons.receipt_long_outlined,
+              sale.isOwnExpense
+                  ? Icons.person_outline
+                  : Icons.receipt_long_outlined,
               color: sale.isOwnExpense ? AppColors.warning : AppColors.emerald,
               size: 20,
             ),
@@ -709,7 +713,7 @@ class _RecentSaleTile extends StatelessWidget {
               children: [
                 Text(
                   sale.productName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -719,7 +723,7 @@ class _RecentSaleTile extends StatelessWidget {
                 ),
                 Text(
                   '$dateStr • ${sale.quantity} u',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
@@ -731,9 +735,13 @@ class _RecentSaleTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                sale.isOwnExpense ? '-${formatMoney(sale.ownExpenseCost)}' : '+${formatMoney(sale.total)}',
+                sale.isOwnExpense
+                    ? '-${formatMoney(sale.ownExpenseCost)}'
+                    : '+${formatMoney(sale.total)}',
                 style: TextStyle(
-                  color: sale.isOwnExpense ? AppColors.warning : AppColors.emerald,
+                  color: sale.isOwnExpense
+                      ? AppColors.warning
+                      : AppColors.emerald,
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                 ),
@@ -742,10 +750,7 @@ class _RecentSaleTile extends StatelessWidget {
                 sale.isOwnExpense
                     ? 'Gasto propio'
                     : 'ganancia ${formatMoney(sale.profit)}',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
               ),
             ],
           ),

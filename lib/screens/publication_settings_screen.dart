@@ -13,8 +13,7 @@ class PublicationSettingsScreen extends StatefulWidget {
       _PublicationSettingsScreenState();
 }
 
-class _PublicationSettingsScreenState
-    extends State<PublicationSettingsScreen> {
+class _PublicationSettingsScreenState extends State<PublicationSettingsScreen> {
   late TextEditingController _businessCtrl;
   late TextEditingController _headerCtrl;
   late TextEditingController _footerCtrl;
@@ -50,9 +49,12 @@ class _PublicationSettingsScreenState
         actions: [
           TextButton(
             onPressed: _save,
-            child: const Text(
+            child: Text(
               'Guardar',
-              style: TextStyle(color: AppColors.navy, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: AppColors.navy,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -115,9 +117,9 @@ class _PublicationSettingsScreenState
       priceTag: _priceTagCtrl.text,
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Plantilla guardada')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Plantilla guardada')));
     Navigator.of(context).pop();
   }
 }
@@ -142,7 +144,7 @@ class _Field extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w600,
             fontSize: 13,
@@ -173,7 +175,7 @@ class _InfoBanner extends StatelessWidget {
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Icon(Icons.info_outline, color: AppColors.navy, size: 20),
           SizedBox(width: 10),
           Expanded(
@@ -216,7 +218,7 @@ class _Legend extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Vista previa',
             style: TextStyle(
               color: AppColors.textPrimary,
@@ -227,7 +229,7 @@ class _Legend extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             preview,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 13,
               height: 1.4,

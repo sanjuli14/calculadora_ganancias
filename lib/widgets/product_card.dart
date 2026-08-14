@@ -19,7 +19,9 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profit = product.sellPrice - product.buyPrice;
-    final profitPercent = product.buyPrice > 0 ? (profit / product.buyPrice) * 100 : 0.0;
+    final profitPercent = product.buyPrice > 0
+        ? (profit / product.buyPrice) * 100
+        : 0.0;
 
     Color stockColor;
     Color stockSoft;
@@ -71,7 +73,7 @@ class ProductCard extends StatelessWidget {
                       children: [
                         Text(
                           product.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -83,7 +85,7 @@ class ProductCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             product.category,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -94,7 +96,10 @@ class ProductCard extends StatelessWidget {
                         ],
                         const SizedBox(height: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: stockSoft,
                             borderRadius: BorderRadius.circular(8),
@@ -112,7 +117,9 @@ class ProductCard extends StatelessWidget {
                         Text(
                           'Margen ${profitPercent.toStringAsFixed(0)}%',
                           style: TextStyle(
-                            color: profit >= 0 ? AppColors.emerald : AppColors.danger,
+                            color: profit >= 0
+                                ? AppColors.emerald
+                                : AppColors.danger,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -132,25 +139,41 @@ class ProductCard extends StatelessWidget {
                     itemBuilder: (context) => [
                       const PopupMenuItem(
                         value: 'edit',
-                        child: Row(children: [Icon(Icons.edit, size: 20), SizedBox(width: 8), Text('Editar')]),
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 20),
+                            SizedBox(width: 8),
+                            Text('Editar'),
+                          ],
+                        ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, color: AppColors.danger, size: 20),
+                            Icon(
+                              Icons.delete,
+                              color: AppColors.danger,
+                              size: 20,
+                            ),
                             SizedBox(width: 8),
-                            Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+                            Text(
+                              'Eliminar',
+                              style: TextStyle(color: AppColors.danger),
+                            ),
                           ],
                         ),
                       ),
                     ],
-                    child: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                    child: Icon(
+                      Icons.more_vert,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              const Divider(color: AppColors.border),
+              Divider(color: AppColors.border),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -176,11 +199,17 @@ class ProductCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text('Ganancia', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        Text(
+                          'Ganancia',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                         const SizedBox(height: 2),
                         Text(
                           formatMoney(profit),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.emerald,
                             fontWeight: FontWeight.w800,
                             fontSize: 14,
@@ -212,15 +241,21 @@ class ProductCard extends StatelessWidget {
               File(product.imagePath!),
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
-                return const Center(
-                  child: Icon(Icons.broken_image, color: AppColors.navy, size: 24),
+                return Center(
+                  child: Icon(
+                    Icons.broken_image,
+                    color: AppColors.navy,
+                    size: 24,
+                  ),
                 );
               },
             )
           : Center(
               child: Text(
-                product.name.isNotEmpty ? product.name.substring(0, 1).toUpperCase() : '?',
-                style: const TextStyle(
+                product.name.isNotEmpty
+                    ? product.name.substring(0, 1).toUpperCase()
+                    : '?',
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   color: AppColors.navy,
@@ -253,7 +288,10 @@ class _PriceBlock extends StatelessWidget {
           children: [
             Icon(icon, size: 12, color: AppColors.textSecondary),
             const SizedBox(width: 4),
-            Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
           ],
         ),
         const SizedBox(height: 2),

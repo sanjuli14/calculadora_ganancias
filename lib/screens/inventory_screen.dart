@@ -70,7 +70,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
                   if (_searchQuery.isNotEmpty) {
                     products = products
-                        .where((p) => p.name.toLowerCase().contains(_searchQuery))
+                        .where(
+                          (p) => p.name.toLowerCase().contains(_searchQuery),
+                        )
                         .toList();
                   }
 
@@ -90,7 +92,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // Agrupa los productos por categoría y los muestra en secciones.
-  Widget _buildGroupedList(List<Product> products, DatabaseService databaseService) {
+  Widget _buildGroupedList(
+    List<Product> products,
+    DatabaseService databaseService,
+  ) {
     if (products.isEmpty) {
       return Center(
         child: Column(
@@ -103,7 +108,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 color: AppColors.navySoft,
                 borderRadius: BorderRadius.circular(28),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.inventory_2_outlined,
                 size: 44,
                 color: AppColors.navy,
@@ -115,7 +120,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ? 'No se encontraron productos'
                   : 'Tu inventario está vacío',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -126,7 +131,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               _searchQuery.isNotEmpty
                   ? 'Intenta con otro término'
                   : 'Usa el botón + para agregar uno nuevo',
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -140,7 +145,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       final cat = p.category.trim();
       groups.putIfAbsent(cat, () => []).add(p);
     }
-    final categoryNames = groups.keys.where((c) => c.isNotEmpty).toList()..sort();
+    final categoryNames = groups.keys.where((c) => c.isNotEmpty).toList()
+      ..sort();
     final noCategory = groups[''] ?? [];
 
     return ListView(
@@ -163,17 +169,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget _buildProductCard(Product product, DatabaseService databaseService) {
     return ProductCard(
       product: product,
-      onEdit: () => _showProductDialog(context, databaseService, product: product),
+      onEdit: () =>
+          _showProductDialog(context, databaseService, product: product),
       onDelete: () => _confirmDelete(context, databaseService, product),
     );
   }
 
-  void _confirmDelete(BuildContext context, DatabaseService db, Product product) {
+  void _confirmDelete(
+    BuildContext context,
+    DatabaseService db,
+    Product product,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Producto'),
-        content: Text('¿Estás seguro de que quieres eliminar "${product.name}"?'),
+        content: Text(
+          '¿Estás seguro de que quieres eliminar "${product.name}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -184,22 +197,33 @@ class _InventoryScreenState extends State<InventoryScreen> {
               await product.delete();
               Navigator.pop(context);
             },
-            child: const Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+            child: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
     );
   }
 
-  void _showProductDialog(BuildContext context, DatabaseService db, {Product? product}) {
+  void _showProductDialog(
+    BuildContext context,
+    DatabaseService db, {
+    Product? product,
+  }) {
     final nameController = TextEditingController(text: product?.name ?? '');
-    final buyPriceController = TextEditingController(text: product?.buyPrice.toString() ?? '');
-    final sellPriceController = TextEditingController(text: product?.sellPrice.toString() ?? '');
-    final stockController = TextEditingController(text: product?.stock.toString() ?? '0');
+    final buyPriceController = TextEditingController(
+      text: product?.buyPrice.toString() ?? '',
+    );
+    final sellPriceController = TextEditingController(
+      text: product?.sellPrice.toString() ?? '',
+    );
+    final stockController = TextEditingController(
+      text: product?.stock.toString() ?? '0',
+    );
     final categories = db.getCategories();
     final currentCategory = product?.category ?? '';
-    String selectedCategory =
-        categories.contains(currentCategory) ? currentCategory : '';
+    String selectedCategory = categories.contains(currentCategory)
+        ? currentCategory
+        : '';
     String? currentImagePath = product?.imagePath;
 
     showDialog(
@@ -215,7 +239,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   GestureDetector(
                     onTap: () async {
                       final ImagePicker picker = ImagePicker();
-                      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                      final XFile? image = await picker.pickImage(
+                        source: ImageSource.gallery,
+                      );
                       if (image != null) {
                         setState(() {
                           currentImagePath = image.path;
@@ -225,11 +251,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     child: CircleAvatar(
                       radius: 40,
                       backgroundColor: AppColors.navySoft,
-                      backgroundImage: currentImagePath != null && File(currentImagePath!).existsSync()
+                      backgroundImage:
+                          currentImagePath != null &&
+                              File(currentImagePath!).existsSync()
                           ? FileImage(File(currentImagePath!))
                           : null,
                       child: currentImagePath == null
-                          ? const Icon(Icons.add_a_photo, size: 30, color: AppColors.navy)
+                          ? Icon(
+                              Icons.add_a_photo,
+                              size: 30,
+                              color: AppColors.navy,
+                            )
                           : null,
                     ),
                   ),
@@ -240,30 +272,45 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           currentImagePath = null;
                         });
                       },
-                      child: const Text('Eliminar Imagen', style: TextStyle(color: AppColors.danger)),
+                      child: Text(
+                        'Eliminar Imagen',
+                        style: TextStyle(color: AppColors.danger),
+                      ),
                     ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Nombre del Producto'),
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del Producto',
+                    ),
                     textCapitalization: TextCapitalization.sentences,
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: buyPriceController,
-                    decoration: const InputDecoration(labelText: 'Precio de Compra'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Precio de Compra',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: sellPriceController,
-                    decoration: const InputDecoration(labelText: 'Precio de Venta'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Precio de Venta',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: stockController,
-                    decoration: const InputDecoration(labelText: 'Stock Inicial'),
+                    decoration: const InputDecoration(
+                      labelText: 'Stock Inicial',
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 10),
@@ -272,7 +319,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedCategory.isEmpty ? null : selectedCategory,
+                          initialValue: selectedCategory.isEmpty
+                              ? null
+                              : selectedCategory,
                           decoration: const InputDecoration(
                             labelText: 'Categoría',
                             prefixIcon: Icon(Icons.category_outlined),
@@ -280,8 +329,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           hint: const Text('Sin categoría'),
                           isExpanded: true,
                           items: [
-                            if (selectedCategory.isNotEmpty && !categories.contains(selectedCategory))
-                              DropdownMenuItem(value: selectedCategory, child: Text(selectedCategory)),
+                            if (selectedCategory.isNotEmpty &&
+                                !categories.contains(selectedCategory))
+                              DropdownMenuItem(
+                                value: selectedCategory,
+                                child: Text(selectedCategory),
+                              ),
                             for (final c in categories)
                               DropdownMenuItem(value: c, child: Text(c)),
                           ],
@@ -303,7 +356,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 content: TextField(
                                   controller: controller,
                                   autofocus: true,
-                                  textCapitalization: TextCapitalization.sentences,
+                                  textCapitalization:
+                                      TextCapitalization.sentences,
                                   decoration: const InputDecoration(
                                     labelText: 'Nombre',
                                     hintText: 'Ej: Refrescos, Abarrotes...',
@@ -313,12 +367,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 ),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(dialogContext),
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext),
                                     child: const Text('Cancelar'),
                                   ),
                                   ElevatedButton(
-                                    onPressed: () =>
-                                        Navigator.pop(dialogContext, controller.text),
+                                    onPressed: () => Navigator.pop(
+                                      dialogContext,
+                                      controller.text,
+                                    ),
                                     child: const Text('Crear'),
                                   ),
                                 ],
@@ -347,8 +404,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ElevatedButton(
                 onPressed: () {
                   final name = nameController.text.trim();
-                  final buyPrice = double.tryParse(buyPriceController.text) ?? 0.0;
-                  final sellPrice = double.tryParse(sellPriceController.text) ?? 0.0;
+                  final buyPrice =
+                      double.tryParse(buyPriceController.text) ?? 0.0;
+                  final sellPrice =
+                      double.tryParse(sellPriceController.text) ?? 0.0;
                   final stock = int.tryParse(stockController.text) ?? 0;
                   final category = selectedCategory.trim();
 
@@ -409,7 +468,7 @@ class _CategoryHeader extends StatelessWidget {
               color: AppColors.navySoft,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.category_outlined,
               size: 18,
               color: AppColors.navy,
@@ -421,7 +480,7 @@ class _CategoryHeader extends StatelessWidget {
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -439,7 +498,7 @@ class _CategoryHeader extends StatelessWidget {
               ),
               child: Text(
                 '$count',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,

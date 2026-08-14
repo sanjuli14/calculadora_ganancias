@@ -80,8 +80,10 @@ class _FiadosScreenState extends State<FiadosScreen> {
                       hasScrollBody: false,
                       child: Center(
                         child: Text(
-                          _showPaid ? 'No hay fiados pagados' : '¡No tienes deudas pendientes!',
-                          style: const TextStyle(color: AppColors.textSecondary),
+                          _showPaid
+                              ? 'No hay fiados pagados'
+                              : '¡No tienes deudas pendientes!',
+                          style: TextStyle(color: AppColors.textSecondary),
                         ),
                       ),
                     )
@@ -89,28 +91,31 @@ class _FiadosScreenState extends State<FiadosScreen> {
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                       sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final debt = debts[index];
-                            final key = box.keyAt(box.values.toList().indexWhere((d) => identical(d, debt)));
-                            return _DebtTile(
-                              debt: debt,
-                              onTap: () => _showDebtDetail(context, db, debt, key),
-                              onPay: () => _showAbonoDialog(context, db, debt, key),
-                              onDelete: () => _confirmDelete(db, key, debt),
-                            );
-                          },
-                          childCount: debts.length,
-                        ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final debt = debts[index];
+                          final key = box.keyAt(
+                            box.values.toList().indexWhere(
+                              (d) => identical(d, debt),
+                            ),
+                          );
+                          return _DebtTile(
+                            debt: debt,
+                            onTap: () =>
+                                _showDebtDetail(context, db, debt, key),
+                            onPay: () =>
+                                _showAbonoDialog(context, db, debt, key),
+                            onDelete: () => _confirmDelete(db, key, debt),
+                          );
+                        }, childCount: debts.length),
                       ),
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
+                ],
+              ),
+            );
+          },
         ),
-      );
+      ),
+    );
   }
 
   void _confirmDelete(DatabaseService db, dynamic key, Debt debt) async {
@@ -128,7 +133,7 @@ class _FiadosScreenState extends State<FiadosScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: AppColors.danger)),
+            child: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -218,7 +223,7 @@ class _FiadosScreenState extends State<FiadosScreen> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Total a deber: ${formatMoney(selected!.sellPrice * (int.tryParse(qtyController.text) ?? 1))}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.navy,
                           fontWeight: FontWeight.w700,
                         ),
@@ -238,7 +243,9 @@ class _FiadosScreenState extends State<FiadosScreen> {
                   final qty = int.tryParse(qtyController.text) ?? 0;
                   if (name.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ingresa el nombre del cliente')),
+                      const SnackBar(
+                        content: Text('Ingresa el nombre del cliente'),
+                      ),
                     );
                     return;
                   }
@@ -250,7 +257,11 @@ class _FiadosScreenState extends State<FiadosScreen> {
                   }
                   if (qty > selected!.stock) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Stock insuficiente (Máx: ${selected!.stock})')),
+                      SnackBar(
+                        content: Text(
+                          'Stock insuficiente (Máx: ${selected!.stock})',
+                        ),
+                      ),
                     );
                     return;
                   }
@@ -258,7 +269,9 @@ class _FiadosScreenState extends State<FiadosScreen> {
                     selected!,
                     qty,
                     name,
-                    note: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+                    note: noteController.text.trim().isEmpty
+                        ? null
+                        : noteController.text.trim(),
                   );
                   if (context.mounted) Navigator.pop(context);
                 },
@@ -271,8 +284,15 @@ class _FiadosScreenState extends State<FiadosScreen> {
     );
   }
 
-  void _showAbonoDialog(BuildContext context, DatabaseService db, Debt debt, dynamic key) {
-    final amountController = TextEditingController(text: formatCents(debt.balance));
+  void _showAbonoDialog(
+    BuildContext context,
+    DatabaseService db,
+    Debt debt,
+    dynamic key,
+  ) {
+    final amountController = TextEditingController(
+      text: formatCents(debt.balance),
+    );
     String method = PaymentMethod.cash;
     final commissionController = TextEditingController();
     bool applyCommission = false;
@@ -282,7 +302,9 @@ class _FiadosScreenState extends State<FiadosScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           final amount = double.tryParse(amountController.text) ?? 0;
-          final commission = applyCommission ? (double.tryParse(commissionController.text) ?? 0) : 0.0;
+          final commission = applyCommission
+              ? (double.tryParse(commissionController.text) ?? 0)
+              : 0.0;
           return AlertDialog(
             title: const Text('Registrar Abono'),
             content: SingleChildScrollView(
@@ -296,7 +318,10 @@ class _FiadosScreenState extends State<FiadosScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'Saldo pendiente: ${formatMoney(debt.balance)}',
-                    style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      color: AppColors.danger,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -305,7 +330,9 @@ class _FiadosScreenState extends State<FiadosScreen> {
                       labelText: 'Monto del abono',
                       prefixIcon: Icon(Icons.payments_outlined),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<String>(
@@ -328,7 +355,12 @@ class _FiadosScreenState extends State<FiadosScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Expanded(child: Text('Comisión', style: TextStyle(fontSize: 13))),
+                        const Expanded(
+                          child: Text(
+                            'Comisión',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
                         Switch(
                           value: applyCommission,
                           activeThumbColor: AppColors.emerald,
@@ -343,11 +375,13 @@ class _FiadosScreenState extends State<FiadosScreen> {
                           labelText: 'Comisión (CUP)',
                           prefixIcon: Icon(Icons.percent),
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                       ),
                       Text(
                         'Neto recibido: ${formatMoney(amount - commission)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.emerald,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
@@ -374,7 +408,11 @@ class _FiadosScreenState extends State<FiadosScreen> {
                   }
                   if (amt > debt.balance + 0.001) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('El abono excede el saldo (${formatMoney(debt.balance)})')),
+                      SnackBar(
+                        content: Text(
+                          'El abono excede el saldo (${formatMoney(debt.balance)})',
+                        ),
+                      ),
                     );
                     return;
                   }
@@ -395,7 +433,12 @@ class _FiadosScreenState extends State<FiadosScreen> {
     );
   }
 
-  void _showDebtDetail(BuildContext context, DatabaseService db, Debt debt, dynamic key) {
+  void _showDebtDetail(
+    BuildContext context,
+    DatabaseService db,
+    Debt debt,
+    dynamic key,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -407,14 +450,19 @@ class _FiadosScreenState extends State<FiadosScreen> {
       builder: (context) {
         final dateStr = DateFormat('dd/MM/yyyy').format(debt.date);
         return Padding(
-          padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + MediaQuery.of(context).viewInsets.bottom),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            0,
+            24,
+            24 + MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.person_outline, color: AppColors.navy, size: 28),
+                  Icon(Icons.person_outline, color: AppColors.navy, size: 28),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -422,7 +470,7 @@ class _FiadosScreenState extends State<FiadosScreen> {
                       children: [
                         Text(
                           debt.customerName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w700,
                             fontSize: 18,
@@ -430,21 +478,31 @@ class _FiadosScreenState extends State<FiadosScreen> {
                         ),
                         Text(
                           '$dateStr • ${debt.productName} × ${debt.quantity}',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: debt.isPaid ? AppColors.emeraldSoft : AppColors.dangerSoft,
+                      color: debt.isPaid
+                          ? AppColors.emeraldSoft
+                          : AppColors.dangerSoft,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       debt.isPaid ? 'PAGADO' : 'ADEUDA',
                       style: TextStyle(
-                        color: debt.isPaid ? AppColors.emerald : AppColors.danger,
+                        color: debt.isPaid
+                            ? AppColors.emerald
+                            : AppColors.danger,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -454,13 +512,22 @@ class _FiadosScreenState extends State<FiadosScreen> {
               ),
               if (debt.note != null) ...[
                 const SizedBox(height: 8),
-                Text(debt.note!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                Text(
+                  debt.note!,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
               ],
               const Divider(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Total de la deuda', style: TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    'Total de la deuda',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                   Text(
                     formatMoney(debt.total),
                     style: const TextStyle(fontWeight: FontWeight.w700),
@@ -471,10 +538,16 @@ class _FiadosScreenState extends State<FiadosScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Abonado', style: TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    'Abonado',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                   Text(
                     formatMoney(debt.paid),
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.emerald),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.emerald,
+                    ),
                   ),
                 ],
               ),
@@ -482,7 +555,10 @@ class _FiadosScreenState extends State<FiadosScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Saldo pendiente', style: TextStyle(color: AppColors.textSecondary)),
+                  Text(
+                    'Saldo pendiente',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                   Text(
                     formatMoney(debt.balance),
                     style: TextStyle(
@@ -507,17 +583,26 @@ class _FiadosScreenState extends State<FiadosScreen> {
                     separatorBuilder: (_, _) => const Divider(height: 16),
                     itemBuilder: (context, i) {
                       final p = debt.payments[i];
-                      final pDate = DateFormat('dd/MM/yyyy HH:mm').format(p.date);
+                      final pDate = DateFormat(
+                        'dd/MM/yyyy HH:mm',
+                      ).format(p.date);
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Row(
                             children: [
-                              Icon(PaymentMethod.icon(p.method), size: 16, color: AppColors.textSecondary),
+                              Icon(
+                                PaymentMethod.icon(p.method),
+                                size: 16,
+                                color: AppColors.textSecondary,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 '${PaymentMethod.label(p.method)} • $pDate',
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
@@ -526,12 +611,17 @@ class _FiadosScreenState extends State<FiadosScreen> {
                             children: [
                               Text(
                                 '-${formatMoney(p.amount)}',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                               if (p.commissionAmount != null)
                                 Text(
                                   'comisión ${formatMoney(p.commissionAmount!)}',
-                                  style: const TextStyle(color: AppColors.danger, fontSize: 11),
+                                  style: TextStyle(
+                                    color: AppColors.danger,
+                                    fontSize: 11,
+                                  ),
                                 ),
                             ],
                           ),
@@ -582,7 +672,7 @@ class _HeaderCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.navy, AppColors.turquoise],
@@ -605,7 +695,11 @@ class _HeaderCard extends StatelessWidget {
               SizedBox(width: 8),
               Text(
                 'Por cobrar en total',
-                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -647,10 +741,17 @@ class _HeaderStat extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
         ],
       ),
     );
@@ -674,13 +775,9 @@ class _ToggleTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: _tab(false, 'Activas', activeCount),
-        ),
+        Expanded(child: _tab(false, 'Activas', activeCount)),
         const SizedBox(width: 8),
-        Expanded(
-          child: _tab(true, 'Pagadas', paidCount),
-        ),
+        Expanded(child: _tab(true, 'Pagadas', paidCount)),
       ],
     );
   }
@@ -695,7 +792,9 @@ class _ToggleTabs extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.navy : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? AppColors.navy : AppColors.border),
+          border: Border.all(
+            color: selected ? AppColors.navy : AppColors.border,
+          ),
         ),
         child: Text(
           '$label ($count)',
@@ -727,10 +826,14 @@ class _EmptyState extends StatelessWidget {
                 color: AppColors.turquoiseSoft,
                 borderRadius: BorderRadius.circular(28),
               ),
-              child: const Icon(Icons.handshake_outlined, size: 44, color: AppColors.turquoise),
+              child: Icon(
+                Icons.handshake_outlined,
+                size: 44,
+                color: AppColors.turquoise,
+              ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'No hay fiados registrados',
               style: TextStyle(
                 color: AppColors.textPrimary,
@@ -739,7 +842,7 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Usa el botón + para registrar una venta a crédito',
               style: TextStyle(color: AppColors.textSecondary),
             ),
@@ -772,7 +875,11 @@ class _DebtTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: debt.isPaid ? AppColors.emerald.withOpacity(0.4) : AppColors.border),
+        border: Border.all(
+          color: debt.isPaid
+              ? AppColors.emerald.withOpacity(0.4)
+              : AppColors.border,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -783,7 +890,9 @@ class _DebtTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: debt.isPaid ? AppColors.emeraldSoft : AppColors.warningSoft,
+                color: debt.isPaid
+                    ? AppColors.emeraldSoft
+                    : AppColors.warningSoft,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
@@ -799,7 +908,7 @@ class _DebtTile extends StatelessWidget {
                 children: [
                   Text(
                     debt.customerName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
@@ -810,7 +919,10 @@ class _DebtTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${debt.productName} × ${debt.quantity} • $dateStr',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -830,7 +942,10 @@ class _DebtTile extends StatelessWidget {
                 ),
                 Text(
                   debt.isPaid ? 'pagado' : 'de ${formatMoney(debt.total)}',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -839,12 +954,20 @@ class _DebtTile extends StatelessWidget {
               IconButton(
                 tooltip: 'Registrar abono',
                 onPressed: onPay,
-                icon: const Icon(Icons.payments_outlined, color: AppColors.emerald, size: 20),
+                icon: Icon(
+                  Icons.payments_outlined,
+                  color: AppColors.emerald,
+                  size: 20,
+                ),
               ),
             ],
             IconButton(
               onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+              icon: Icon(
+                Icons.delete_outline,
+                color: AppColors.danger,
+                size: 20,
+              ),
             ),
           ],
         ),
