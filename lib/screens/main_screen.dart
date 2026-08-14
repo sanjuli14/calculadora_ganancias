@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../notifiers/nav_notifier.dart';
 import '../services/database_service.dart';
+import '../services/share_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import 'dashboard_screen.dart';
@@ -14,6 +16,7 @@ import 'categories_screen.dart';
 import 'calculator_screen.dart';
 import 'daily_inventory_screen.dart';
 import 'expenses_screen.dart';
+import 'publication_settings_screen.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -54,6 +57,16 @@ class _MainScreenBody extends StatelessWidget {
           ),
         ),
         title: const AppLogo(fontSize: 20),
+        actions: [
+          if (nav.index == 1)
+            Builder(
+              builder: (innerContext) => IconButton(
+                icon: const Icon(Icons.share, color: AppColors.navy),
+                tooltip: 'Compartir publicación',
+                onPressed: () => _shareInventoryPublication(innerContext, db, messenger),
+              ),
+            ),
+        ],
       ),
       drawer: Drawer(
         child: SafeArea(
@@ -110,6 +123,17 @@ class _MainScreenBody extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).pop();
                   _handleMenuAction(messenger, db, context, 'calculator');
+                },
+              ),
+              const Divider(thickness: 1, height: 24, indent: 20, endIndent: 20),
+              const _DrawerSectionLabel('Compartir'),
+              _DrawerItem(
+                icon: Icons.campaign_outlined,
+                iconColor: AppColors.turquoise,
+                label: 'Publicación de inventario',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'publication_settings');
                 },
               ),
               const Divider(thickness: 1, height: 24, indent: 20, endIndent: 20),
@@ -246,6 +270,42 @@ Future<void> _handleMenuAction(
     }
   } else if (value == 'import') {
     await _showImportOptions(context, db);
+  } else if (value == 'publication_settings') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => const PublicationSettingsScreen(),
+      ),
+    );
+  }
+}
+
+// Comparte la lista de inventario (con fotos adjuntas) usando la plantilla
+// configurada por el usuario en PublicationSettingsScreen.
+Future<void> _shareInventoryPublication(
+  BuildContext context,
+  DatabaseService db,
+  ScaffoldMessengerState messenger,
+) async {
+  final products = db.productsBox.values.toList();
+  if (products.isEmpty) {
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Agrega productos antes de compartir')),
+    );
+    return;
+  }
+  try {
+    final service = ShareService(db);
+    final status = await service.sharePublication(products);
+    if (status == ShareResultStatus.unavailable) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No hay app disponible para compartir')),
+      );
+    }
+  } catch (e) {
+    messenger.showSnackBar(
+      SnackBar(content: Text('No se pudo compartir: $e')),
+    );
   }
 }
 
@@ -450,7 +510,7 @@ class _DrawerFooter extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
       child: Text(
-        'Cuentas Claras v1.5.0',
+        'Cuentas Claras v1.5.1',
         style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
       ),
     );

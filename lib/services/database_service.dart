@@ -61,6 +61,60 @@ class DatabaseService {
   // selector de archivos (que reiniciaba la app y pedía login de nuevo).
   static const String _savedBackupsKey = 'saved_backups';
 
+  // ---- Configuración de la publicación para compartir ----
+  // Se guarda en la box de metadatos. Todos los campos tienen valores por
+  // defecto razonables para que la publicación salga bien sin configurar nada.
+  static const String _pubBusinessNameKey = 'pub_business_name';
+  static const String _pubHeaderKey = 'pub_header';
+  static const String _pubFooterKey = 'pub_footer';
+  static const String _pubPhonesKey = 'pub_phones';
+  static const String _pubTagKey = 'pub_price_tag';
+
+  String get publicationBusinessName =>
+      (_metaBox.get(_pubBusinessNameKey, defaultValue: 'Mi Negocio') as String);
+
+  String get publicationHeader => (_metaBox.get(
+        _pubHeaderKey,
+        defaultValue: '💢 *LOS MEJORES PRECIOS AQUI* ✅\n'
+            '💢 *TODOS LOS PRODUCTOS EN EFECTIVO*💢 \n\n'
+            '💯 *Disponible*:\n',
+      ) as String);
+
+  String get publicationFooter => (_metaBox.get(
+        _pubFooterKey,
+        defaultValue: '\n🚲 *DOMICILIO DISPONIBLE Y GRATIS* 🚲',
+      ) as String);
+
+  String get publicationPhones =>
+      (_metaBox.get(_pubPhonesKey, defaultValue: '') as String);
+
+  String get publicationPriceTag =>
+      (_metaBox.get(_pubTagKey, defaultValue: ' *EFECTIVO*') as String);
+
+  Future<void> setPublicationConfig({
+    String? businessName,
+    String? header,
+    String? footer,
+    String? phones,
+    String? priceTag,
+  }) async {
+    if (businessName != null) {
+      await _metaBox.put(_pubBusinessNameKey, businessName);
+    }
+    if (header != null) {
+      await _metaBox.put(_pubHeaderKey, header);
+    }
+    if (footer != null) {
+      await _metaBox.put(_pubFooterKey, footer);
+    }
+    if (phones != null) {
+      await _metaBox.put(_pubPhonesKey, phones);
+    }
+    if (priceTag != null) {
+      await _metaBox.put(_pubTagKey, priceTag);
+    }
+  }
+
   List<Map<String, String>> get savedBackups {
     final raw = _metaBox.get(_savedBackupsKey);
     if (raw == null) return const [];
