@@ -72,8 +72,8 @@ class _MainScreenBody extends StatelessWidget {
       ),
       drawer: Drawer(
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 16),
             children: [
               const _DrawerHeader(),
               const _DrawerSectionLabel('Cuentas'),
@@ -191,7 +191,6 @@ class _MainScreenBody extends StatelessWidget {
                   _handleMenuAction(messenger, db, context, 'import');
                 },
               ),
-              const Spacer(),
               const _DrawerFooter(),
             ],
           ),
@@ -540,7 +539,7 @@ class _DrawerFooter extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
       child: Text(
-        'Cuentas Claras v1.5.2',
+        'Cuentas Claras v1.5.3',
         style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
       ),
     );
