@@ -18,6 +18,11 @@ import 'daily_inventory_screen.dart';
 import 'expenses_screen.dart';
 import 'appearance_screen.dart';
 import 'publication_settings_screen.dart';
+import 'purchases_screen.dart';
+import 'shrinkages_screen.dart';
+import 'reports_screen.dart';
+import 'product_history_screen.dart';
+import 'merge_products_screen.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -134,6 +139,58 @@ class _MainScreenBody extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).pop();
                   _handleMenuAction(messenger, db, context, 'appearance');
+                },
+              ),
+              const Divider(
+                thickness: 1,
+                height: 24,
+                indent: 20,
+                endIndent: 20,
+              ),
+              const _DrawerSectionLabel('Libro Mayor'),
+              _DrawerItem(
+                icon: Icons.assessment_outlined,
+                iconColor: AppColors.emerald,
+                label: 'Reportes y Finanzas',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'reports');
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.shopping_bag_outlined,
+                iconColor: AppColors.turquoise,
+                label: 'Compras',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'purchases');
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.report_gmailerrorred_outlined,
+                iconColor: AppColors.warning,
+                label: 'Mermas',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'shrinkages');
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.history,
+                iconColor: AppColors.navy,
+                label: 'Historial de Productos',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'product_history');
+                },
+              ),
+              _DrawerItem(
+                icon: Icons.call_merge,
+                iconColor: AppColors.turquoise,
+                label: 'Fusionar Productos',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'product_merge');
                 },
               ),
               const Divider(
@@ -295,6 +352,31 @@ Future<void> _handleMenuAction(
     final navigator = Navigator.of(context);
     await navigator.push(
       MaterialPageRoute(builder: (_) => const AppearanceScreen()),
+    );
+  } else if (value == 'reports') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(builder: (_) => const ReportsScreen()),
+    );
+  } else if (value == 'purchases') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(builder: (_) => const PurchasesScreen()),
+    );
+  } else if (value == 'shrinkages') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(builder: (_) => const ShrinkagesScreen()),
+    );
+  } else if (value == 'product_history') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(builder: (_) => const ProductHistoryScreen()),
+    );
+  } else if (value == 'product_merge') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(builder: (_) => const MergeProductsScreen()),
     );
   }
 }

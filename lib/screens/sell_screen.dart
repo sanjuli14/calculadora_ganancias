@@ -496,6 +496,7 @@ class _SellScreenState extends State<SellScreen> {
       final subtotal = item.product.sellPrice * item.quantity;
       final sale = Sale(
         productName: item.product.name,
+        productId: item.product.productId,
         unitBuyPrice: item.product.buyPrice,
         unitSellPrice: item.product.sellPrice,
         quantity: item.quantity,

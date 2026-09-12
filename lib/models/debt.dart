@@ -29,6 +29,9 @@ class Debt extends HiveObject {
   @HiveField(7)
   List<Payment> payments;
 
+  @HiveField(8)
+  String? productId;
+
   Debt({
     required this.customerName,
     required this.productName,
@@ -38,6 +41,7 @@ class Debt extends HiveObject {
     required this.date,
     this.note,
     List<Payment>? payments,
+    this.productId,
   }) : payments = payments ?? [];
 
   double get total => unitPrice * quantity;
@@ -58,6 +62,7 @@ class Debt extends HiveObject {
       'date': date.toIso8601String(),
       'note': note,
       'payments': payments.map((p) => p.toJson()).toList(),
+      'productId': productId,
     };
   }
 
@@ -73,6 +78,7 @@ class Debt extends HiveObject {
       payments: (json['payments'] as List? ?? [])
           .map((i) => Payment.fromJson(i))
           .toList(),
+      productId: json['productId'] as String?,
     );
   }
 }

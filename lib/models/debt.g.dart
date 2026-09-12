@@ -25,13 +25,14 @@ class DebtAdapter extends TypeAdapter<Debt> {
       date: fields[5] as DateTime,
       note: fields[6] as String?,
       payments: (fields[7] as List?)?.cast<Payment>(),
+      productId: fields[8] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Debt obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.customerName)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class DebtAdapter extends TypeAdapter<Debt> {
       ..writeByte(6)
       ..write(obj.note)
       ..writeByte(7)
-      ..write(obj.payments);
+      ..write(obj.payments)
+      ..writeByte(8)
+      ..write(obj.productId);
   }
 
   @override

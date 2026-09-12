@@ -28,6 +28,9 @@ class Sale extends HiveObject {
   @HiveField(7)
   double? exchangeRate;
 
+  @HiveField(8)
+  String? productId;
+
   Sale({
     required this.productName,
     required this.unitBuyPrice,
@@ -37,6 +40,7 @@ class Sale extends HiveObject {
     this.paymentMethod = 'efectivo',
     this.commissionAmount,
     this.exchangeRate,
+    this.productId,
   });
 
   bool get isOwnExpense => paymentMethod == 'gasto_propio';
@@ -59,6 +63,7 @@ class Sale extends HiveObject {
       'paymentMethod': paymentMethod,
       'commissionAmount': commissionAmount,
       'exchangeRate': exchangeRate,
+      'productId': productId,
     };
   }
 
@@ -72,6 +77,7 @@ class Sale extends HiveObject {
       paymentMethod: json['paymentMethod'] as String? ?? 'efectivo',
       commissionAmount: (json['commissionAmount'] as num?)?.toDouble(),
       exchangeRate: (json['exchangeRate'] as num?)?.toDouble(),
+      productId: json['productId'] as String?,
     );
   }
 }

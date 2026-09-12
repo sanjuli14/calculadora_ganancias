@@ -17,6 +17,8 @@ class GainsScreen extends StatefulWidget {
 
 class _GainsScreenState extends State<GainsScreen> {
   String _period = 'all';
+  String? _filterProduct;
+  String? _filterPayment;
   final _exchangeRateController = TextEditingController();
   bool _showUsd = false;
 
@@ -44,6 +46,19 @@ class _GainsScreenState extends State<GainsScreen> {
     }
   }
 
+  // Aplica los filtros de producto y tipo de pago seleccionados.
+  List<Sale> _applyFilters(List<Sale> sales) {
+    return sales.where((s) {
+      if (_filterProduct != null && s.productName != _filterProduct) {
+        return false;
+      }
+      if (_filterPayment != null && s.paymentMethod != _filterPayment) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final databaseService = Provider.of<DatabaseService>(context);
@@ -54,7 +69,17 @@ class _GainsScreenState extends State<GainsScreen> {
           valueListenable: databaseService.salesListenable,
           builder: (context, box, _) {
             final allSales = box.values.toList().cast<Sale>();
-            final sales = _filterSales(databaseService, allSales);
+            final productOptions =
+                allSales.map((s) => s.productName).toSet().toList()..sort();
+            final paymentOptions =
+                allSales.map((s) => s.paymentMethod).toSet().toList();
+            paymentOptions.sort(
+              (a, b) => PaymentMethod.all
+                  .indexOf(a)
+                  .compareTo(PaymentMethod.all.indexOf(b)),
+            );
+
+            final sales = _applyFilters(_filterSales(databaseService, allSales));
 
             if (allSales.isEmpty) {
               return Center(
@@ -117,6 +142,57 @@ class _GainsScreenState extends State<GainsScreen> {
                           period: _period,
                           onChanged: (p) => setState(() => _period = p),
                         ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _FilterDropdown(
+                                value: _filterProduct ?? '',
+                                options: [
+                                  for (final name in productOptions)
+                                    (value: name, label: name),
+                                ],
+                                onChanged: (v) => setState(
+                                  () => _filterProduct = v.isEmpty ? null : v,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _FilterDropdown(
+                                value: _filterPayment ?? '',
+                                options: [
+                                  for (final m in paymentOptions)
+                                    (
+                                      value: m,
+                                      label: PaymentMethod.label(m),
+                                    ),
+                                ],
+                                onChanged: (v) => setState(
+                                  () => _filterPayment = v.isEmpty ? null : v,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_filterProduct != null ||
+                            _filterPayment != null) ...[
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () => setState(() {
+                                _filterProduct = null;
+                                _filterPayment = null;
+                              }),
+                              icon: const Icon(
+                                Icons.filter_alt_off_outlined,
+                                size: 16,
+                              ),
+                              label: const Text('Quitar filtros'),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         Container(
                           width: double.infinity,
@@ -201,7 +277,10 @@ class _GainsScreenState extends State<GainsScreen> {
                         const SizedBox(height: 20),
                         Text(
                           sales.isEmpty
-                              ? 'Sin ventas en este período'
+                              ? (_filterProduct != null ||
+                                    _filterPayment != null)
+                                  ? 'Sin ventas que coincidan con los filtros'
+                                  : 'Sin ventas en este período'
                               : 'Historial de ventas (${sales.length})',
                           style: TextStyle(
                             color: AppColors.textPrimary,
@@ -221,12 +300,8 @@ class _GainsScreenState extends State<GainsScreen> {
                       final sale = sales[sales.length - 1 - index];
                       return _SaleTile(
                         sale: sale,
-                        onDelete: () => _confirmDelete(
-                          context,
-                          databaseService,
-                          box,
-                          sales.length - 1 - index,
-                        ),
+                        onDelete: () =>
+                            _confirmDelete(context, databaseService, sale),
                       );
                     }, childCount: sales.length),
                   ),
@@ -242,10 +317,9 @@ class _GainsScreenState extends State<GainsScreen> {
   void _confirmDelete(
     BuildContext context,
     DatabaseService db,
-    Box<Sale> box,
-    int index,
+    Sale sale,
   ) async {
-    final key = box.keyAt(index);
+    final key = sale.key;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -483,6 +557,57 @@ class _HeaderStat extends StatelessWidget {
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FilterDropdown extends StatelessWidget {
+  final String value;
+  final List<({String value, String label})> options;
+  final ValueChanged<String> onChanged;
+
+  const _FilterDropdown({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          iconEnabledColor: AppColors.navy,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+          items: [
+            const DropdownMenuItem(
+              value: '',
+              child: Text('Todos'),
+            ),
+            for (final o in options)
+              DropdownMenuItem(
+                value: o.value,
+                child: Text(
+                  o.label,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: (v) => onChanged(v ?? ''),
+        ),
       ),
     );
   }

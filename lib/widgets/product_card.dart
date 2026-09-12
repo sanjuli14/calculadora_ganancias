@@ -8,12 +8,14 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final double? weightedPurchaseCost;
 
   const ProductCard({
     super.key,
     required this.product,
     this.onEdit,
     this.onDelete,
+    this.weightedPurchaseCost,
   });
 
   @override
@@ -183,6 +185,9 @@ class ProductCard extends StatelessWidget {
                       value: product.buyPrice,
                       color: AppColors.textPrimary,
                       icon: Icons.south_west,
+                      note: weightedPurchaseCost == null
+                          ? null
+                          : 'Prom. compras ${formatMoney(weightedPurchaseCost!)}',
                     ),
                   ),
                   Container(width: 1, height: 36, color: AppColors.border),
@@ -271,12 +276,14 @@ class _PriceBlock extends StatelessWidget {
   final double value;
   final Color color;
   final IconData icon;
+  final String? note;
 
   const _PriceBlock({
     required this.label,
     required this.value,
     required this.color,
     required this.icon,
+    this.note,
   });
 
   @override
@@ -303,6 +310,15 @@ class _PriceBlock extends StatelessWidget {
             fontSize: 14,
           ),
         ),
+        if (note != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            note!,
+            style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ],
     );
   }

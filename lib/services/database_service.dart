@@ -13,6 +13,8 @@ import '../models/debt.dart';
 import '../models/payment.dart';
 import '../models/transfer_account.dart';
 import '../models/expense.dart';
+import '../models/purchase.dart';
+import '../models/shrinkage.dart';
 import '../theme/app_palettes.dart';
 
 class DatabaseService {
@@ -20,7 +22,7 @@ class DatabaseService {
   // Aumenta este número cuando agregues/cambies campos de un modelo y deja
   // la lógica de migración en _migrate(). Así las actualizaciones nunca
   // pierden los datos del usuario.
-  static const int _schemaVersion = 3;
+  static const int _schemaVersion = 5;
 
   late Box<Product> _productsBox;
   late Box<Sale> _salesBox;
@@ -29,6 +31,8 @@ class DatabaseService {
   late Box<TransferAccount> _transferAccountsBox;
   late Box<String> _categoriesBox;
   late Box<Expense> _expensesBox;
+  late Box<Purchase> _purchasesBox;
+  late Box<Shrinkage> _shrinkagesBox;
   late Box _metaBox;
 
   Box<Product> get productsBox => _productsBox;
@@ -38,6 +42,8 @@ class DatabaseService {
   Box<TransferAccount> get transferAccountsBox => _transferAccountsBox;
   Box<String> get categoriesBox => _categoriesBox;
   Box<Expense> get expensesBox => _expensesBox;
+  Box<Purchase> get purchasesBox => _purchasesBox;
+  Box<Shrinkage> get shrinkagesBox => _shrinkagesBox;
 
   bool get onboardingSeen =>
       _metaBox.get('onboarding_seen', defaultValue: false) as bool;
@@ -212,6 +218,9 @@ class DatabaseService {
     Hive.registerAdapter(PaymentAdapter());
     Hive.registerAdapter(TransferAccountAdapter());
     Hive.registerAdapter(ExpenseAdapter());
+    Hive.registerAdapter(PurchaseItemAdapter());
+    Hive.registerAdapter(PurchaseAdapter());
+    Hive.registerAdapter(ShrinkageAdapter());
 
     // Abre la box de metadatos (versión de esquema) de forma segura.
     try {
@@ -232,6 +241,8 @@ class DatabaseService {
     );
     _categoriesBox = await _openBoxSafely<String>('categories');
     _expensesBox = await _openBoxSafely<Expense>('expenses');
+    _purchasesBox = await _openBoxSafely<Purchase>('purchases');
+    _shrinkagesBox = await _openBoxSafely<Shrinkage>('shrinkages');
 
     await _migrate();
   }
@@ -259,11 +270,85 @@ class DatabaseService {
     // v3: se agregó la box de gastos (expenses). Igual que en v2, la box
     // se abre en init() y no hay datos previos que migrar.
     //
-    // if (current < 4) {
-    //   // nueva lógica aquí
-    // }
+    // v4: se agregaron las box de compras/lotes (purchases) y mermas
+    // (shrinkages). Ambas se abren en init() sin datos previos que migrar;
+    // solo se actualiza el número de esquema.
+    //
+
+    if (current < 5) {
+      await _migrateToV5();
+    }
 
     await _metaBox.put('db_version', _schemaVersion);
+  }
+
+  // v5: cada producto recibe un ID estable (productId). Este ID es el que
+  // sobrevive a renombres y permite fusionar duplicados. Los registros del
+  // libro mayor (ventas, compras, mermas, fiados) que quedaron sin ID se
+  // vinculan al catálogo por nombre para que el historial no se pierda.
+  Future<void> _migrateToV5() async {
+    // 1) Asigna IDs estables a los productos que aún no tienen.
+    for (final product in _productsBox.values.toList()) {
+      if (product.productId == null || product.productId!.isEmpty) {
+        product.ensureId();
+        await product.save();
+      }
+    }
+
+    // Mapa nombre -> ID actual del catálogo (la primera coincidencia gana).
+    final idByName = <String, String>{};
+    for (final product in _productsBox.values) {
+      idByName.putIfAbsent(product.name, () => product.productId!);
+    }
+
+    // 2) Vincula ventas antiguas por nombre de producto.
+    for (final sale in _salesBox.values.toList()) {
+      if (sale.productId == null || sale.productId!.isEmpty) {
+        final id = idByName[sale.productName];
+        if (id != null) {
+          sale.productId = id;
+          await sale.save();
+        }
+      }
+    }
+
+    // 3) Vincula los artículos de compras antiguos por nombre. Los items
+    // van anidados en el Purchase, así que se persiste el lote completo.
+    for (final purchase in _purchasesBox.values.toList()) {
+      var changed = false;
+      for (final item in purchase.items) {
+        if (item.productId == null || item.productId!.isEmpty) {
+          final id = idByName[item.productName];
+          if (id != null) {
+            item.productId = id;
+            changed = true;
+          }
+        }
+      }
+      if (changed) await purchase.save();
+    }
+
+    // 4) Vincula las mermas antiguas por nombre.
+    for (final shrinkage in _shrinkagesBox.values.toList()) {
+      if (shrinkage.productId == null || shrinkage.productId!.isEmpty) {
+        final id = idByName[shrinkage.productName];
+        if (id != null) {
+          shrinkage.productId = id;
+          await shrinkage.save();
+        }
+      }
+    }
+
+    // 5) Vincula los fiados antiguos por nombre.
+    for (final debt in _debtsBox.values.toList()) {
+      if (debt.productId == null || debt.productId!.isEmpty) {
+        final id = idByName[debt.productName];
+        if (id != null) {
+          debt.productId = id;
+          await debt.save();
+        }
+      }
+    }
   }
 
   // ValueListenable for UI updates
@@ -279,9 +364,14 @@ class DatabaseService {
       _categoriesBox.listenable();
   ValueListenable<Box<Expense>> get expensesListenable =>
       _expensesBox.listenable();
+  ValueListenable<Box<Purchase>> get purchasesListenable =>
+      _purchasesBox.listenable();
+  ValueListenable<Box<Shrinkage>> get shrinkagesListenable =>
+      _shrinkagesBox.listenable();
 
   // Product CRUD
   Future<void> addProduct(Product product) async {
+    product.ensureId();
     await _productsBox.add(product);
   }
 
@@ -342,13 +432,11 @@ class DatabaseService {
   Future<void> deleteSale(dynamic key) async {
     final sale = _salesBox.get(key);
     if (sale != null) {
-      // Find the product and restore stock
-      for (var product in _productsBox.values) {
-        if (product.name == sale.productName) {
-          product.stock += sale.quantity;
-          await product.save();
-          break;
-        }
+      // Restaura el stock del producto (por ID estable o por nombre).
+      final product = _productByIdOrName(sale.productId, sale.productName);
+      if (product != null) {
+        product.stock += sale.quantity;
+        await product.save();
       }
       // Al eliminar un gasto propio, se devuelve el importe a la inversión.
       if (sale.isOwnExpense) {
@@ -364,6 +452,29 @@ class DatabaseService {
       return sale.date.isAfter(start.subtract(const Duration(days: 1))) &&
           sale.date.isBefore(end.add(const Duration(days: 1)));
     }).toList();
+  }
+
+  // ---- Historial de productos (desde el libro de ventas) ----
+
+  // Productos que alguna vez se han vendido (excluye los gastos propios),
+  // ordenados alfabéticamente. Incluye productos ya eliminados del catálogo.
+  List<String> getSoldProductNames() {
+    final names = <String>{};
+    for (final sale in _salesBox.values) {
+      if (sale.isOwnExpense) continue;
+      names.add(sale.productName);
+    }
+    final list = names.toList()..sort();
+    return list;
+  }
+
+  // Ventas de un producto (sin gastos propios), más recientes primero.
+  List<Sale> getSalesForProduct(String productName) {
+    final sales = _salesBox.values
+        .where((s) => s.productName == productName && !s.isOwnExpense)
+        .toList();
+    sales.sort((a, b) => b.date.compareTo(a.date));
+    return sales;
   }
 
   // Get weekly sales (from previous inventory day to current inventory day)
@@ -450,6 +561,181 @@ class DatabaseService {
   int getLowStockCount({int threshold = 5}) =>
       getLowStockProducts(threshold: threshold).length;
 
+  // Busca un producto por nombre (o null si ya no existe).
+  Product? productByName(String name) {
+    for (final product in _productsBox.values) {
+      if (product.name == name) return product;
+    }
+    return null;
+  }
+
+  // Busca un producto por su ID estable (o null si ya no existe).
+  Product? productById(String id) {
+    for (final product in _productsBox.values) {
+      if (product.productId == id) return product;
+    }
+    return null;
+  }
+
+  // Busca un producto por su ID estable, o por nombre si el ID falta o no
+  // coincide (registros antiguos o productos renombrados).
+  Product? _productByIdOrName(String? productId, String productName) {
+    if (productId != null && productId.isNotEmpty) {
+      for (final p in _productsBox.values) {
+        if (p.productId == productId) return p;
+      }
+    }
+    for (final p in _productsBox.values) {
+      if (p.name == productName) return p;
+    }
+    return null;
+  }
+
+  // Clave de agrupación de los registros del libro de ventas: el ID del
+  // producto si existe, o el nombre para los registros antiguos sin ID.
+  static String saleGroupKey(Sale sale) {
+    if (sale.productId != null && sale.productId!.isNotEmpty) {
+      return sale.productId!;
+    }
+    return sale.productName;
+  }
+
+  // Ventas de un grupo de producto (por ID estable, o por nombre cuando el
+  // grupo viene de registros antiguos sin ID), excluyendo gastos propios.
+  List<Sale> getSalesForProductGroup(String groupKey) {
+    final sales = _salesBox.values
+        .where(
+          (s) => !s.isOwnExpense && saleGroupKey(s) == groupKey,
+        )
+        .toList();
+    sales.sort((a, b) => b.date.compareTo(a.date));
+    return sales;
+  }
+
+  // Cuántos registros del libro mayor referencian a un producto (por ID o
+  // por nombre). Sirve para mostrar un aviso antes de fusionar duplicados.
+  Map<String, int> ledgerReferences(Product product) {
+    final id = product.productId;
+    final name = product.name;
+    bool matches(String? refId, String refName) {
+      if (id != null && id.isNotEmpty && refId == id) return true;
+      return refName == name;
+    }
+
+    var sales = 0, purchaseItems = 0, shrinkages = 0, debts = 0;
+    for (final s in _salesBox.values) {
+      if (matches(s.productId, s.productName)) sales++;
+    }
+    for (final p in _purchasesBox.values) {
+      for (final i in p.items) {
+        if (matches(i.productId, i.productName)) purchaseItems++;
+      }
+    }
+    for (final s in _shrinkagesBox.values) {
+      if (matches(s.productId, s.productName)) shrinkages++;
+    }
+    for (final d in _debtsBox.values) {
+      if (matches(d.productId, d.productName)) debts++;
+    }
+    return {
+      'sales': sales,
+      'purchases': purchaseItems,
+      'shrinkages': shrinkages,
+      'debts': debts,
+    };
+  }
+
+  // Fusiona uno o más productos duplicados dentro del principal (keeper).
+  // Suma su stock, unifica el historial (ventas, compras, mermas y fiados
+  // que lo referencian) y elimina del catálogo los productos absorbidos.
+  // El keeper conserva su ID estable y sus precios/categoría.
+  Future<void> mergeProducts({
+    required Product keeper,
+    required List<Product> absorbed,
+  }) async {
+    if (absorbed.isEmpty) return;
+
+    keeper.ensureId();
+    final keeperId = keeper.productId!;
+    final keeperName = keeper.name;
+
+    final absorbedIds = <String>{};
+    final absorbedNames = <String>{};
+    for (final p in absorbed) {
+      if (p.productId != null && p.productId!.isNotEmpty) {
+        absorbedIds.add(p.productId!);
+      }
+      absorbedNames.add(p.name);
+    }
+
+    bool matches(String? id, String? name) {
+      if (id != null && id.isNotEmpty && absorbedIds.contains(id)) {
+        return true;
+      }
+      return name != null && absorbedNames.contains(name);
+    }
+
+    // Suma el stock de los absorbidos al producto principal.
+    for (final p in absorbed) {
+      keeper.stock += p.stock;
+    }
+    await keeper.save();
+
+    // Ventas.
+    for (final sale in _salesBox.values.toList()) {
+      if (matches(sale.productId, sale.productName)) {
+        sale.productId = keeperId;
+        sale.productName = keeperName;
+        await sale.save();
+      }
+    }
+
+    // Compras: los items van anidados en el lote, se persiste cada lote.
+    for (final purchase in _purchasesBox.values.toList()) {
+      var changed = false;
+      for (final item in purchase.items) {
+        if (matches(item.productId, item.productName)) {
+          item.productId = keeperId;
+          item.productName = keeperName;
+          changed = true;
+        }
+      }
+      if (changed) await purchase.save();
+    }
+
+    // Mermas.
+    for (final shrinkage in _shrinkagesBox.values.toList()) {
+      if (matches(shrinkage.productId, shrinkage.productName)) {
+        shrinkage.productId = keeperId;
+        shrinkage.productName = keeperName;
+        await shrinkage.save();
+      }
+    }
+
+    // Fiados.
+    for (final debt in _debtsBox.values.toList()) {
+      if (matches(debt.productId, debt.productName)) {
+        debt.productId = keeperId;
+        debt.productName = keeperName;
+        await debt.save();
+      }
+    }
+
+    // Elimina del catálogo los productos absorbidos.
+    for (final p in absorbed) {
+      await p.delete();
+    }
+  }
+
+  // Costo promedio ponderado del producto según las compras registradas
+  // (suma(costo × cantidad) / suma(cantidad)). Null si no hay compras.
+  double? getWeightedPurchaseCost(String productName) {
+    return weightedAveragePurchaseCost(
+      _purchasesBox.values.cast<Purchase>(),
+      productName,
+    );
+  }
+
   // ---- Caja contable ----
 
   Future<void> addCashCount(CashCount count) async {
@@ -500,6 +786,213 @@ class DatabaseService {
     return total;
   }
 
+  // ---- Compras / Lotes (historial inmutable) ----
+
+  // Registra una compra y sube el stock de cada producto del lote.
+  // El histórico queda guardado sin importar el stock que haya después.
+  Future<void> addPurchase(Purchase purchase) async {
+    for (final item in purchase.items) {
+      await _addStockByName(
+        item.productName,
+        item.quantity,
+        productId: item.productId,
+      );
+    }
+    await _purchasesBox.add(purchase);
+  }
+
+  // Elimina una compra y revierte el stock que subió (si el producto
+  // aún existe). Útil solo para errores de captura.
+  Future<void> deletePurchase(dynamic key) async {
+    final purchase = _purchasesBox.get(key);
+    if (purchase != null) {
+      for (final item in purchase.items) {
+        await _removeStockByName(
+          item.productName,
+          item.quantity,
+          productId: item.productId,
+        );
+      }
+    }
+    await _purchasesBox.delete(key);
+  }
+
+  List<Purchase> getPurchases() {
+    final list = _purchasesBox.values.toList().cast<Purchase>();
+    list.sort((a, b) => b.date.compareTo(a.date));
+    return list;
+  }
+
+  List<Purchase> getPurchasesBetween(DateTime start, DateTime end) {
+    return _purchasesBox.values.where((p) {
+      return p.date.isAfter(start.subtract(const Duration(days: 1))) &&
+          p.date.isBefore(end.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  double getPurchasesTotal() {
+    double total = 0;
+    for (final p in _purchasesBox.values) {
+      total += p.totalCost;
+    }
+    return total;
+  }
+
+  double getPurchasesTotalBetween(DateTime start, DateTime end) {
+    double total = 0;
+    for (final p in getPurchasesBetween(start, end)) {
+      total += p.totalCost;
+    }
+    return total;
+  }
+
+  // ---- Mermas / Ajustes ----
+
+  // Registra una merma y baja el stock del producto (sin dejar negativo).
+  Future<void> addShrinkage(Shrinkage shrinkage) async {
+    await _removeStockByName(
+      shrinkage.productName,
+      shrinkage.quantity,
+      productId: shrinkage.productId,
+    );
+    await _shrinkagesBox.add(shrinkage);
+  }
+
+  // Elimina una merma y restaura el stock que se bajó.
+  Future<void> deleteShrinkage(dynamic key) async {
+    final shrinkage = _shrinkagesBox.get(key);
+    if (shrinkage != null) {
+      await _addStockByName(
+        shrinkage.productName,
+        shrinkage.quantity,
+        productId: shrinkage.productId,
+      );
+    }
+    await _shrinkagesBox.delete(key);
+  }
+
+  List<Shrinkage> getShrinkages() {
+    final list = _shrinkagesBox.values.toList().cast<Shrinkage>();
+    list.sort((a, b) => b.date.compareTo(a.date));
+    return list;
+  }
+
+  List<Shrinkage> getShrinkagesBetween(DateTime start, DateTime end) {
+    return _shrinkagesBox.values.where((s) {
+      return s.date.isAfter(start.subtract(const Duration(days: 1))) &&
+          s.date.isBefore(end.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  double getShrinkageCostBetween(DateTime start, DateTime end) {
+    double total = 0;
+    for (final s in getShrinkagesBetween(start, end)) {
+      total += s.cost;
+    }
+    return total;
+  }
+
+  double getTotalShrinkageCost() {
+    double total = 0;
+    for (final s in _shrinkagesBox.values) {
+      total += s.cost;
+    }
+    return total;
+  }
+
+  // ---- Indicadores financieros (libro mayor) ----
+
+  // Costo de ventas real (COGS): costo histórico de lo vendido en el período.
+  double getCOGSBetween(DateTime start, DateTime end) {
+    double total = 0;
+    for (final sale in getSalesBetween(start, end)) {
+      if (sale.isOwnExpense) continue;
+      total += sale.unitBuyPrice * sale.quantity;
+    }
+    return total;
+  }
+
+  // Ingresos por ventas del período (los gastos propios no generan ingresos).
+  double getRevenueBetween(DateTime start, DateTime end) {
+    double total = 0;
+    for (final sale in getSalesBetween(start, end)) {
+      if (sale.isOwnExpense) continue;
+      total += sale.total;
+    }
+    return total;
+  }
+
+  // Ganancia bruta real: ingresos menos costo histórico de lo vendido.
+  double getGrossProfitBetween(DateTime start, DateTime end) {
+    return getRevenueBetween(start, end) - getCOGSBetween(start, end);
+  }
+
+  // Gastos operativos registrados en el período.
+  double getExpensesBetween(DateTime start, DateTime end) {
+    double total = 0;
+    for (final e in _expensesBox.values) {
+      if (!e.date.isBefore(start) &&
+          !e.date.isAfter(end.add(const Duration(days: 1)))) {
+        total += e.amount;
+      }
+    }
+    return total;
+  }
+
+  // Utilidad neta del período: ganancia bruta - mermas - gastos operativos.
+  double getNetProfitBetween(DateTime start, DateTime end) {
+    return getGrossProfitBetween(start, end) -
+        getShrinkageCostBetween(start, end) -
+        getExpensesBetween(start, end);
+  }
+
+  // Capital inyectado histórico: lo declarado manualmente + todas las compras.
+  double getHistoricalCapitalInjected() {
+    return totalInvestment + getPurchasesTotal();
+  }
+
+  // Rotación del inventario: cuántas veces se renovó el stock en el período.
+  double getInventoryTurnover(DateTime start, DateTime end) {
+    final invested = getInvestedCapital();
+    if (invested <= 0) return 0;
+    return getCOGSBetween(start, end) / invested;
+  }
+
+  // Margen real ponderado sobre el período (ganancia bruta / ingresos).
+  double getRealMargin(DateTime start, DateTime end) {
+    final revenue = getRevenueBetween(start, end);
+    if (revenue <= 0) return 0;
+    return getGrossProfitBetween(start, end) / revenue;
+  }
+
+  // Sube el stock de un producto buscándolo por su ID estable o por nombre.
+  Future<void> _addStockByName(
+    String productName,
+    int quantity, {
+    String? productId,
+  }) async {
+    final product = _productByIdOrName(productId, productName);
+    if (product != null) {
+      product.stock += quantity;
+      await product.save();
+    }
+  }
+
+  // Baja el stock de un producto (por ID o nombre) sin dejarlo negativo.
+  Future<void> _removeStockByName(
+    String productName,
+    int quantity, {
+    String? productId,
+  }) async {
+    final product = _productByIdOrName(productId, productName);
+    if (product != null) {
+      product.stock = (product.stock - quantity) >= 0
+          ? product.stock - quantity
+          : 0;
+      await product.save();
+    }
+  }
+
   // ---- Cuentas por cobrar (fiados) ----
 
   Future<void> registerCreditSale(
@@ -514,6 +1007,7 @@ class DatabaseService {
     final debt = Debt(
       customerName: customerName,
       productName: product.name,
+      productId: product.productId,
       unitPrice: product.sellPrice,
       quantity: quantity,
       unitCost: product.buyPrice,
@@ -545,13 +1039,11 @@ class DatabaseService {
   Future<void> deleteDebt(dynamic key) async {
     final debt = _debtsBox.get(key);
     if (debt != null) {
-      // Restaurar stock del producto fiado
-      for (var product in _productsBox.values) {
-        if (product.name == debt.productName) {
-          product.stock += debt.quantity;
-          await product.save();
-          break;
-        }
+      // Restaurar stock del producto fiado (por ID estable o por nombre).
+      final product = _productByIdOrName(debt.productId, debt.productName);
+      if (product != null) {
+        product.stock += debt.quantity;
+        await product.save();
       }
     }
     await _debtsBox.delete(key);
@@ -659,6 +1151,8 @@ class DatabaseService {
           .toList(),
       'categories': _categoriesBox.values.toList().cast<String>(),
       'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
+      'purchases': _purchasesBox.values.map((p) => p.toJson()).toList(),
+      'shrinkages': _shrinkagesBox.values.map((s) => s.toJson()).toList(),
       'totalInvestment': totalInvestment,
       'date': DateTime.now().toIso8601String(),
     };
@@ -698,6 +1192,8 @@ class DatabaseService {
             .toList(),
         'categories': _categoriesBox.values.toList().cast<String>(),
         'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
+        'purchases': _purchasesBox.values.map((p) => p.toJson()).toList(),
+        'shrinkages': _shrinkagesBox.values.map((s) => s.toJson()).toList(),
         'totalInvestment': totalInvestment,
         'date': DateTime.now().toIso8601String(),
       };
@@ -814,6 +1310,8 @@ class DatabaseService {
       await _transferAccountsBox.clear();
       await _categoriesBox.clear();
       await _expensesBox.clear();
+      await _purchasesBox.clear();
+      await _shrinkagesBox.clear();
 
       final products = (backup['products'] as List)
           .map((i) => Product.fromJson(i))
@@ -872,6 +1370,28 @@ class DatabaseService {
             .toList();
         if (expenses.isNotEmpty) {
           await _expensesBox.addAll(expenses);
+        }
+      }
+
+      // Compras / lotes (opcional: backups anteriores no la traen).
+      if (backup['purchases'] is List) {
+        final purchases = (backup['purchases'] as List)
+            .whereType<Map>()
+            .map((i) => Purchase.fromJson(Map<String, dynamic>.from(i)))
+            .toList();
+        if (purchases.isNotEmpty) {
+          await _purchasesBox.addAll(purchases);
+        }
+      }
+
+      // Mermas / ajustes (opcional: backups anteriores no la traen).
+      if (backup['shrinkages'] is List) {
+        final shrinkages = (backup['shrinkages'] as List)
+            .whereType<Map>()
+            .map((i) => Shrinkage.fromJson(Map<String, dynamic>.from(i)))
+            .toList();
+        if (shrinkages.isNotEmpty) {
+          await _shrinkagesBox.addAll(shrinkages);
         }
       }
 

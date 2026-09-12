@@ -1,49 +1,46 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'product.dart';
+part of 'shrinkage.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class ProductAdapter extends TypeAdapter<Product> {
+class ShrinkageAdapter extends TypeAdapter<Shrinkage> {
   @override
-  final int typeId = 0;
+  final int typeId = 9;
 
   @override
-  Product read(BinaryReader reader) {
+  Shrinkage read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Product(
-      name: fields[0] as String,
-      buyPrice: fields[1] as double,
-      sellPrice: fields[2] as double,
-      stock: fields[3] as int,
-      imagePath: fields[4] as String?,
-      category: fields[5] as String,
-      productId: fields[6] as String?,
+    return Shrinkage(
+      date: fields[0] as DateTime,
+      productName: fields[1] as String,
+      quantity: fields[2] as int,
+      unitCost: fields[3] as double,
+      reason: fields[4] as String,
+      productId: fields[5] as String?,
     );
   }
 
   @override
-  void write(BinaryWriter writer, Product obj) {
+  void write(BinaryWriter writer, Shrinkage obj) {
     writer
-      ..writeByte(7)
-      ..writeByte(0)
-      ..write(obj.name)
-      ..writeByte(1)
-      ..write(obj.buyPrice)
-      ..writeByte(2)
-      ..write(obj.sellPrice)
-      ..writeByte(3)
-      ..write(obj.stock)
-      ..writeByte(4)
-      ..write(obj.imagePath)
-      ..writeByte(5)
-      ..write(obj.category)
       ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.date)
+      ..writeByte(1)
+      ..write(obj.productName)
+      ..writeByte(2)
+      ..write(obj.quantity)
+      ..writeByte(3)
+      ..write(obj.unitCost)
+      ..writeByte(4)
+      ..write(obj.reason)
+      ..writeByte(5)
       ..write(obj.productId);
   }
 
@@ -53,7 +50,7 @@ class ProductAdapter extends TypeAdapter<Product> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ProductAdapter &&
+      other is ShrinkageAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

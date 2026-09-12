@@ -55,6 +55,7 @@ class ShareService {
     final text = buildPublicationText(products);
     final images = <XFile>[];
     for (final p in products) {
+      if (p.stock <= 0) continue;
       final path = p.imagePath;
       if (path == null) continue;
       final file = File(path);

@@ -169,6 +169,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget _buildProductCard(Product product, DatabaseService databaseService) {
     return ProductCard(
       product: product,
+      weightedPurchaseCost: databaseService.getWeightedPurchaseCost(
+        product.name,
+      ),
       onEdit: () =>
           _showProductDialog(context, databaseService, product: product),
       onDelete: () => _confirmDelete(context, databaseService, product),

@@ -22,6 +22,9 @@ class Product extends HiveObject {
   @HiveField(5)
   String category;
 
+  @HiveField(6)
+  String? productId;
+
   Product({
     required this.name,
     required this.buyPrice,
@@ -29,7 +32,15 @@ class Product extends HiveObject {
     this.stock = 0,
     this.imagePath,
     this.category = '',
+    this.productId,
   });
+
+  /// Garantiza que el producto tenga un ID estable (sobrevive renombres).
+  /// Asigna uno nuevo si aún no lo tiene; solo persiste si se llama a save().
+  String ensureId() {
+    productId ??= 'p_${DateTime.now().microsecondsSinceEpoch}';
+    return productId!;
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -38,6 +49,7 @@ class Product extends HiveObject {
       'sellPrice': sellPrice,
       'stock': stock,
       'category': category,
+      'productId': productId,
     };
   }
 
@@ -48,6 +60,7 @@ class Product extends HiveObject {
       sellPrice: json['sellPrice'],
       stock: json['stock'],
       category: json['category'] ?? '',
+      productId: json['productId'] as String?,
     );
   }
 }
