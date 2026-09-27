@@ -420,6 +420,27 @@ class DatabaseService {
   }
 
   // Sale CRUD
+
+  // Registra una venta y descuenta el stock en un solo paso. El producto se
+  // vuelve a buscar en la box (por ID estable) para no escribir sobre una
+  // copia vieja que haya quedado en memoria tras una fusión o restauración.
+  Future<void> registerSale(Sale sale) async {
+    final product = _productByIdOrName(sale.productId, sale.productName);
+    if (product == null) {
+      throw StateError('El producto ${sale.productName} ya no existe');
+    }
+    product.stock -= sale.quantity;
+    await product.save();
+    try {
+      await addSale(sale);
+    } catch (_) {
+      // Sin venta registrada no debe quedar el stock descontado.
+      product.stock += sale.quantity;
+      await product.save();
+      rethrow;
+    }
+  }
+
   Future<void> addSale(Sale sale) async {
     await _salesBox.add(sale);
     // Los gastos propios no se cobran: se descuentan automáticamente del
@@ -576,6 +597,10 @@ class DatabaseService {
     }
     return null;
   }
+
+  // Versión actual en la box de un producto que se tenga en memoria.
+  Product? findProduct(Product product) =>
+      _productByIdOrName(product.productId, product.name);
 
   // Busca un producto por su ID estable, o por nombre si el ID falta o no
   // coincide (registros antiguos o productos renombrados).
@@ -1001,20 +1026,32 @@ class DatabaseService {
     String customerName, {
     String? note,
   }) async {
-    product.stock -= quantity;
-    await product.save();
+    // Se usa la versión actual de la box, no la copia que llega de la UI.
+    final current = findProduct(product);
+    if (current == null) {
+      throw StateError('El producto ${product.name} ya no existe');
+    }
+    current.stock -= quantity;
+    await current.save();
 
     final debt = Debt(
       customerName: customerName,
-      productName: product.name,
-      productId: product.productId,
-      unitPrice: product.sellPrice,
+      productName: current.name,
+      productId: current.productId,
+      unitPrice: current.sellPrice,
       quantity: quantity,
-      unitCost: product.buyPrice,
+      unitCost: current.buyPrice,
       date: DateTime.now(),
       note: note,
     );
-    await _debtsBox.add(debt);
+    try {
+      await _debtsBox.add(debt);
+    } catch (_) {
+      // Sin fiado registrado no debe quedar el stock descontado.
+      current.stock += quantity;
+      await current.save();
+      rethrow;
+    }
   }
 
   Future<void> addDebtPayment(
@@ -1036,9 +1073,11 @@ class DatabaseService {
     await debt.save();
   }
 
-  Future<void> deleteDebt(dynamic key) async {
+  // restoreStock solo debe ser true si la mercancía volvió a la tienda
+  // (fiado registrado por error o devuelto). Un fiado cobrado ya salió.
+  Future<void> deleteDebt(dynamic key, {bool restoreStock = true}) async {
     final debt = _debtsBox.get(key);
-    if (debt != null) {
+    if (debt != null && restoreStock) {
       // Restaurar stock del producto fiado (por ID estable o por nombre).
       final product = _productByIdOrName(debt.productId, debt.productName);
       if (product != null) {

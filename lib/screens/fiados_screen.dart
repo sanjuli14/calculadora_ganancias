@@ -119,27 +119,52 @@ class _FiadosScreenState extends State<FiadosScreen> {
   }
 
   void _confirmDelete(DatabaseService db, dynamic key, Debt debt) async {
+    // Borrar un fiado (cobrado, con abonos o incobrable) no significa que la
+    // mercancía haya vuelto. Solo se repone si el usuario lo marca.
+    var restoreStock = false;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar fiado'),
-        content: Text(
-          'Se eliminará la deuda de ${debt.customerName} y se repondrá el stock del producto.',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Eliminar fiado'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Se eliminará la deuda de ${debt.customerName}.'),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                value: restoreStock,
+                onChanged: (v) => setDialogState(() => restoreStock = v!),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(
+                  'Reponer ${debt.quantity} ud. de ${debt.productName} al inventario',
+                ),
+                subtitle: const Text(
+                  'Márcalo solo si el producto volvió a la tienda',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                'Eliminar',
+                style: TextStyle(color: AppColors.danger),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Eliminar', style: TextStyle(color: AppColors.danger)),
-          ),
-        ],
       ),
     );
     if (confirmed == true) {
-      await db.deleteDebt(key);
+      await db.deleteDebt(key, restoreStock: restoreStock);
     }
   }
 

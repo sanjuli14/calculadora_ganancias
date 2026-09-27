@@ -35,6 +35,10 @@ class _SellScreenState extends State<SellScreen> {
   final _formKey = GlobalKey<FormState>();
   String _paymentMethod = PaymentMethod.cash;
   bool _applyCommission = false;
+  bool _processing = false;
+  // Comisión ya repartida en líneas guardadas. Si la venta falla a mitad y
+  // se reintenta, solo se reparte lo que falta entre las líneas restantes.
+  double _commissionApplied = 0;
   dynamic _selectedAccountKey;
 
   @override
@@ -57,9 +61,17 @@ class _SellScreenState extends State<SellScreen> {
     return (v == null || v <= 0) ? null : v;
   }
 
+  // Compara por ID estable: dos productos pueden llamarse igual.
+  bool _sameProduct(Product a, Product b) {
+    if (a.productId != null && b.productId != null) {
+      return a.productId == b.productId;
+    }
+    return a.name == b.name;
+  }
+
   int _inCartFor(Product product) {
     return _cart
-        .where((i) => i.product.name == product.name)
+        .where((i) => _sameProduct(i.product, product))
         .fold(0, (sum, i) => sum + i.quantity);
   }
 
@@ -82,7 +94,7 @@ class _SellScreenState extends State<SellScreen> {
       return;
     }
     final existing = _cart
-        .where((i) => i.product.name == product.name)
+        .where((i) => _sameProduct(i.product, product))
         .toList();
     setState(() {
       if (existing.isNotEmpty) {
@@ -422,7 +434,9 @@ class _SellScreenState extends State<SellScreen> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
-                  onPressed: () => _processSale(databaseService),
+                  onPressed: _processing
+                      ? null
+                      : () => _processSale(databaseService),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _paymentMethod == PaymentMethod.credit
                         ? AppColors.turquoise
@@ -458,30 +472,61 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   void _processSale(DatabaseService db) async {
+    if (_processing) return;
     if (_cart.isEmpty) {
       _showSnack('Agrega al menos un producto al carrito');
       return;
     }
     if (!_formKey.currentState!.validate()) return;
 
+    // El carrito puede tener copias viejas de los productos (p. ej. tras
+    // fusionar duplicados o restaurar una copia). Se toman los de la box.
+    for (final item in _cart) {
+      final current = db.findProduct(item.product);
+      if (current == null) {
+        _showSnack('${item.product.name} ya no existe. Quítalo del carrito');
+        return;
+      }
+      if (current.stock < item.quantity) {
+        _showSnack(
+          'Stock insuficiente de ${current.name} (Máx: ${current.stock})',
+        );
+        return;
+      }
+    }
+
+    setState(() => _processing = true);
+    try {
+      await _commitSale(db);
+    } catch (e) {
+      if (mounted) _showSnack('No se pudo registrar la venta: $e');
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Future<void> _commitSale(DatabaseService db) async {
     final now = DateTime.now();
+    final lineCount = _cart.length;
+    final cartTotal = _cartTotal;
 
     if (_paymentMethod == PaymentMethod.credit) {
       final customer = _customerController.text.trim();
       final note = _noteController.text.trim().isEmpty
           ? null
           : _noteController.text.trim();
-      for (final item in _cart) {
+      for (final item in List.of(_cart)) {
         await db.registerCreditSale(
           item.product,
           item.quantity,
           customer,
           note: note,
         );
+        _cart.remove(item);
       }
       if (!mounted) return;
       _showSnack(
-        'Fiado registrado por $customer (${_cart.length} producto${_cart.length == 1 ? '' : 's'})',
+        'Fiado registrado por $customer ($lineCount producto${lineCount == 1 ? '' : 's'})',
       );
       _resetForm();
       return;
@@ -489,28 +534,32 @@ class _SellScreenState extends State<SellScreen> {
 
     final totalSubtotal = _cart.fold(
       0.0,
-      (s, i) => s + i.product.sellPrice * i.quantity,
+      (s, i) => s + db.findProduct(i.product)!.sellPrice * i.quantity,
     );
+    final pendingCommission = _commission - _commissionApplied;
 
-    for (final item in _cart) {
-      final subtotal = item.product.sellPrice * item.quantity;
+    // Se procesa de una copia: cada línea registrada sale del carrito para
+    // que, si algo falla a mitad, reintentar no la descuente dos veces.
+    for (final item in List.of(_cart)) {
+      final product = db.findProduct(item.product)!;
+      final subtotal = product.sellPrice * item.quantity;
       final sale = Sale(
-        productName: item.product.name,
-        productId: item.product.productId,
-        unitBuyPrice: item.product.buyPrice,
-        unitSellPrice: item.product.sellPrice,
+        productName: product.name,
+        productId: product.productId,
+        unitBuyPrice: product.buyPrice,
+        unitSellPrice: product.sellPrice,
         quantity: item.quantity,
         date: now,
         paymentMethod: _paymentMethod,
-        commissionAmount: _commission > 0 && totalSubtotal > 0
-            ? _commission * (subtotal / totalSubtotal)
+        commissionAmount: pendingCommission > 0 && totalSubtotal > 0
+            ? pendingCommission * (subtotal / totalSubtotal)
             : null,
         exchangeRate: _exchangeRate,
       );
 
-      item.product.stock -= item.quantity;
-      await item.product.save();
-      await db.addSale(sale);
+      await db.registerSale(sale);
+      _cart.remove(item);
+      _commissionApplied += sale.commissionAmount ?? 0;
     }
 
     if (!mounted) return;
@@ -529,10 +578,10 @@ class _SellScreenState extends State<SellScreen> {
       parts.add('cambio ${formatMoney(_exchangeRate!)}');
     }
     if (_paymentMethod == PaymentMethod.ownExpense) {
-      parts.add('descontado ${formatMoney(_cartTotal)} de la inversión');
+      parts.add('descontado ${formatMoney(cartTotal)} de la inversión');
     }
     _showSnack(
-      '${_cart.length} venta${_cart.length == 1 ? '' : 's'} registrada${_cart.length == 1 ? '' : 's'} (${parts.join(', ')})',
+      '$lineCount venta${lineCount == 1 ? '' : 's'} registrada${lineCount == 1 ? '' : 's'} (${parts.join(', ')})',
     );
     _resetForm();
   }
@@ -547,6 +596,7 @@ class _SellScreenState extends State<SellScreen> {
       _paymentMethod = PaymentMethod.cash;
       _applyCommission = false;
       _selectedAccountKey = null;
+      _commissionApplied = 0;
     });
   }
 }
