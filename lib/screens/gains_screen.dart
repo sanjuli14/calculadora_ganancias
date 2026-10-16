@@ -120,6 +120,12 @@ class _GainsScreenState extends State<GainsScreen> {
 
             final totalRevenue = sales.fold(0.0, (s, x) => s + x.total);
             final totalProfit = sales.fold(0.0, (s, x) => s + x.profit);
+            // Con el filtro de gasto propio la ganancia siempre es 0, así que
+            // la tarjeta muestra el costo de lo consumido.
+            final showOwnExpense = _filterPayment == PaymentMethod.ownExpense;
+            final totalOwnExpense =
+                sales.fold(0.0, (s, x) => s + x.ownExpenseCost);
+            final totalUnits = sales.fold(0, (s, x) => s + x.quantity);
 
             return CustomScrollView(
               slivers: [
@@ -215,17 +221,21 @@ class _GainsScreenState extends State<GainsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
                                   Icon(
-                                    Icons.savings_outlined,
+                                    showOwnExpense
+                                        ? Icons.person_outline
+                                        : Icons.savings_outlined,
                                     color: Colors.white70,
                                     size: 18,
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Ganancia del período',
-                                    style: TextStyle(
+                                    showOwnExpense
+                                        ? 'Gasto propio del período'
+                                        : 'Ganancia del período',
+                                    style: const TextStyle(
                                       color: Colors.white70,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -235,7 +245,9 @@ class _GainsScreenState extends State<GainsScreen> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                formatMoney(totalProfit),
+                                showOwnExpense
+                                    ? '-${formatMoney(totalOwnExpense)}'
+                                    : formatMoney(totalProfit),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 32,
@@ -247,7 +259,8 @@ class _GainsScreenState extends State<GainsScreen> {
                               Row(
                                 children: [
                                   _HeaderStat(
-                                    label: 'Ventas',
+                                    label:
+                                        showOwnExpense ? 'Registros' : 'Ventas',
                                     value: '${sales.length}',
                                   ),
                                   Container(
@@ -256,8 +269,12 @@ class _GainsScreenState extends State<GainsScreen> {
                                     color: Colors.white24,
                                   ),
                                   _HeaderStat(
-                                    label: 'Ingresos',
-                                    value: formatMoney(totalRevenue),
+                                    label: showOwnExpense
+                                        ? 'Unidades'
+                                        : 'Ingresos',
+                                    value: showOwnExpense
+                                        ? '$totalUnits'
+                                        : formatMoney(totalRevenue),
                                   ),
                                 ],
                               ),
