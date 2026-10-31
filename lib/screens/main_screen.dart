@@ -23,6 +23,7 @@ import 'shrinkages_screen.dart';
 import 'reports_screen.dart';
 import 'product_history_screen.dart';
 import 'merge_products_screen.dart';
+import 'closing_screen.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -148,6 +149,15 @@ class _MainScreenBody extends StatelessWidget {
                 endIndent: 20,
               ),
               const _DrawerSectionLabel('Libro Mayor'),
+              _DrawerItem(
+                icon: Icons.lock_clock_outlined,
+                iconColor: AppColors.emerald,
+                label: 'Cierre de Inventario',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _handleMenuAction(messenger, db, context, 'closing');
+                },
+              ),
               _DrawerItem(
                 icon: Icons.assessment_outlined,
                 iconColor: AppColors.emerald,
@@ -357,6 +367,11 @@ Future<void> _handleMenuAction(
     final navigator = Navigator.of(context);
     await navigator.push(
       MaterialPageRoute(builder: (_) => const ReportsScreen()),
+    );
+  } else if (value == 'closing') {
+    final navigator = Navigator.of(context);
+    await navigator.push(
+      MaterialPageRoute(builder: (_) => const ClosingScreen()),
     );
   } else if (value == 'purchases') {
     final navigator = Navigator.of(context);

@@ -6,6 +6,7 @@ import '../models/sale.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
+import '../utils/closed_period_guard.dart';
 import '../utils/payment_methods.dart';
 
 class GainsScreen extends StatefulWidget {
@@ -16,7 +17,7 @@ class GainsScreen extends StatefulWidget {
 }
 
 class _GainsScreenState extends State<GainsScreen> {
-  String _period = 'all';
+  String _period = 'closing';
   String? _filterProduct;
   String? _filterPayment;
   final _exchangeRateController = TextEditingController();
@@ -35,6 +36,8 @@ class _GainsScreenState extends State<GainsScreen> {
 
   List<Sale> _filterSales(DatabaseService db, List<Sale> sales) {
     switch (_period) {
+      case 'closing':
+        return db.getCurrentPeriodSales();
       case 'day':
         return db.getTodaySales();
       case 'week':
@@ -65,267 +68,256 @@ class _GainsScreenState extends State<GainsScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: ValueListenableBuilder<Box<Sale>>(
-          valueListenable: databaseService.salesListenable,
-          builder: (context, box, _) {
-            final allSales = box.values.toList().cast<Sale>();
-            final productOptions =
-                allSales.map((s) => s.productName).toSet().toList()..sort();
-            final paymentOptions =
-                allSales.map((s) => s.paymentMethod).toSet().toList();
-            paymentOptions.sort(
-              (a, b) => PaymentMethod.all
-                  .indexOf(a)
-                  .compareTo(PaymentMethod.all.indexOf(b)),
-            );
-
-            final sales = _applyFilters(_filterSales(databaseService, allSales));
-
-            if (allSales.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 96,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        color: AppColors.emeraldSoft,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: Icon(
-                        Icons.trending_up,
-                        size: 44,
-                        color: AppColors.emerald,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'No hay ventas registradas aún',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Registra tu primera venta desde el tab Vender',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
+        child: ListenableBuilder(
+          listenable: databaseService.periodListenable,
+          builder: (context, _) => ValueListenableBuilder<Box<Sale>>(
+            valueListenable: databaseService.salesListenable,
+            builder: (context, box, _) {
+              final allSales = box.values.toList().cast<Sale>();
+              final productOptions =
+                  allSales.map((s) => s.productName).toSet().toList()..sort();
+              final paymentOptions = allSales
+                  .where((s) => !s.isOwnExpense)
+                  .map((s) => s.paymentMethod)
+                  .toSet()
+                  .toList();
+              paymentOptions.sort(
+                (a, b) => PaymentMethod.all
+                    .indexOf(a)
+                    .compareTo(PaymentMethod.all.indexOf(b)),
               );
-            }
 
-            final totalRevenue = sales.fold(0.0, (s, x) => s + x.total);
-            final totalProfit = sales.fold(0.0, (s, x) => s + x.profit);
-            // Con el filtro de gasto propio la ganancia siempre es 0, así que
-            // la tarjeta muestra el costo de lo consumido.
-            final showOwnExpense = _filterPayment == PaymentMethod.ownExpense;
-            final totalOwnExpense =
-                sales.fold(0.0, (s, x) => s + x.ownExpenseCost);
-            final totalUnits = sales.fold(0, (s, x) => s + x.quantity);
+              final sales = _applyFilters(
+                _filterSales(databaseService, allSales),
+              );
 
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ganancias',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
+              if (allSales.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          color: AppColors.emeraldSoft,
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        child: Icon(
+                          Icons.trending_up,
+                          size: 44,
+                          color: AppColors.emerald,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'No hay ventas registradas aún',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Registra tu primera venta desde el tab Vender',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              final totalRevenue = sales.fold(0.0, (s, x) => s + x.total);
+              final totalProfit = sales.fold(0.0, (s, x) => s + x.profit);
+
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ganancias',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        _PeriodSelector(
-                          period: _period,
-                          onChanged: (p) => setState(() => _period = p),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _FilterDropdown(
-                                value: _filterProduct ?? '',
-                                options: [
-                                  for (final name in productOptions)
-                                    (value: name, label: name),
-                                ],
-                                onChanged: (v) => setState(
-                                  () => _filterProduct = v.isEmpty ? null : v,
+                          const SizedBox(height: 12),
+                          _PeriodSelector(
+                            period: _period,
+                            onChanged: (p) => setState(() => _period = p),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _FilterDropdown(
+                                  value: _filterProduct ?? '',
+                                  options: [
+                                    for (final name in productOptions)
+                                      (value: name, label: name),
+                                  ],
+                                  onChanged: (v) => setState(
+                                    () => _filterProduct = v.isEmpty ? null : v,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _FilterDropdown(
-                                value: _filterPayment ?? '',
-                                options: [
-                                  for (final m in paymentOptions)
-                                    (
-                                      value: m,
-                                      label: PaymentMethod.label(m),
-                                    ),
-                                ],
-                                onChanged: (v) => setState(
-                                  () => _filterPayment = v.isEmpty ? null : v,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _FilterDropdown(
+                                  value: _filterPayment ?? '',
+                                  options: [
+                                    for (final m in paymentOptions)
+                                      (value: m, label: PaymentMethod.label(m)),
+                                  ],
+                                  onChanged: (v) => setState(
+                                    () => _filterPayment = v.isEmpty ? null : v,
+                                  ),
                                 ),
+                              ),
+                            ],
+                          ),
+                          if (_filterProduct != null ||
+                              _filterPayment != null) ...[
+                            const SizedBox(height: 4),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: () => setState(() {
+                                  _filterProduct = null;
+                                  _filterPayment = null;
+                                }),
+                                icon: const Icon(
+                                  Icons.filter_alt_off_outlined,
+                                  size: 16,
+                                ),
+                                label: const Text('Quitar filtros'),
                               ),
                             ),
                           ],
-                        ),
-                        if (_filterProduct != null ||
-                            _filterPayment != null) ...[
-                          const SizedBox(height: 4),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: () => setState(() {
-                                _filterProduct = null;
-                                _filterPayment = null;
-                              }),
-                              icon: const Icon(
-                                Icons.filter_alt_off_outlined,
-                                size: 16,
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [AppColors.navy, AppColors.emerald],
                               ),
-                              label: const Text('Quitar filtros'),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [AppColors.navy, AppColors.emerald],
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.navy.withOpacity(0.3),
-                                blurRadius: 18,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    showOwnExpense
-                                        ? Icons.person_outline
-                                        : Icons.savings_outlined,
-                                    color: Colors.white70,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    showOwnExpense
-                                        ? 'Gasto propio del período'
-                                        : 'Ganancia del período',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                showOwnExpense
-                                    ? '-${formatMoney(totalOwnExpense)}'
-                                    : formatMoney(totalProfit),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.navy.withOpacity(0.3),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
                                 ),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  _HeaderStat(
-                                    label:
-                                        showOwnExpense ? 'Registros' : 'Ventas',
-                                    value: '${sales.length}',
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.savings_outlined,
+                                      color: Colors.white70,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Ganancia del período',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  formatMoney(totalProfit),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
                                   ),
-                                  Container(
-                                    width: 1,
-                                    height: 32,
-                                    color: Colors.white24,
-                                  ),
-                                  _HeaderStat(
-                                    label: showOwnExpense
-                                        ? 'Unidades'
-                                        : 'Ingresos',
-                                    value: showOwnExpense
-                                        ? '$totalUnits'
-                                        : formatMoney(totalRevenue),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    _HeaderStat(
+                                      label: 'Ventas',
+                                      value:
+                                          '${sales.where((s) => !s.isOwnExpense).length}',
+                                    ),
+                                    Container(
+                                      width: 1,
+                                      height: 32,
+                                      color: Colors.white24,
+                                    ),
+                                    _HeaderStat(
+                                      label: 'Ingresos',
+                                      value: formatMoney(totalRevenue),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        _DollarCard(
-                          rate: _usdRate,
-                          show: _showUsd,
-                          totalRevenue: totalRevenue,
-                          totalProfit: totalProfit,
-                          controller: _exchangeRateController,
-                          onChanged: () => setState(() {}),
-                          onToggle: (v) => setState(() => _showUsd = v),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          sales.isEmpty
-                              ? (_filterProduct != null ||
-                                    _filterPayment != null)
-                                  ? 'Sin ventas que coincidan con los filtros'
-                                  : 'Sin ventas en este período'
-                              : 'Historial de ventas (${sales.length})',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
+                          const SizedBox(height: 16),
+                          _DollarCard(
+                            rate: _usdRate,
+                            show: _showUsd,
+                            totalRevenue: totalRevenue,
+                            totalProfit: totalProfit,
+                            controller: _exchangeRateController,
+                            onChanged: () => setState(() {}),
+                            onToggle: (v) => setState(() => _showUsd = v),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
+                          const SizedBox(height: 20),
+                          Text(
+                            sales.isEmpty
+                                ? (_filterProduct != null ||
+                                          _filterPayment != null)
+                                      ? 'Sin ventas que coincidan con los filtros'
+                                      : 'Sin ventas en este período'
+                                : 'Historial de ventas (${sales.length})',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final sale = sales[sales.length - 1 - index];
-                      return _SaleTile(
-                        sale: sale,
-                        onDelete: () =>
-                            _confirmDelete(context, databaseService, sale),
-                      );
-                    }, childCount: sales.length),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final sale = sales[sales.length - 1 - index];
+                        return _SaleTile(
+                          sale: sale,
+                          onDelete: () =>
+                              _confirmDelete(context, databaseService, sale),
+                        );
+                      }, childCount: sales.length),
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -356,8 +348,9 @@ class _GainsScreenState extends State<GainsScreen> {
         ],
       ),
     );
-    if (confirmed == true) {
-      await db.deleteSale(key);
+    if (confirmed == true && context.mounted) {
+      final done = await guardClosedPeriod(context, () => db.deleteSale(key));
+      if (!done) return;
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -508,13 +501,15 @@ class _PeriodSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        _periodChip('closing', 'Período'),
+        const SizedBox(width: 6),
         _periodChip('all', 'Todo'),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         _periodChip('day', 'Hoy'),
-        const SizedBox(width: 8),
-        _periodChip('month', 'Este mes'),
-        const SizedBox(width: 8),
-        _periodChip('week', 'Esta semana'),
+        const SizedBox(width: 6),
+        _periodChip('month', 'Mes'),
+        const SizedBox(width: 6),
+        _periodChip('week', 'Semana'),
       ],
     );
   }
@@ -540,7 +535,7 @@ class _PeriodSelector extends StatelessWidget {
             style: TextStyle(
               color: selected ? Colors.white : AppColors.textSecondary,
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: 12,
             ),
           ),
         ),
@@ -610,17 +605,11 @@ class _FilterDropdown extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
           items: [
-            const DropdownMenuItem(
-              value: '',
-              child: Text('Todos'),
-            ),
+            const DropdownMenuItem(value: '', child: Text('Todos')),
             for (final o in options)
               DropdownMenuItem(
                 value: o.value,
-                child: Text(
-                  o.label,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(o.label, overflow: TextOverflow.ellipsis),
               ),
           ],
           onChanged: (v) => onChanged(v ?? ''),

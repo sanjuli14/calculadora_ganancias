@@ -5,9 +5,10 @@ class PaymentMethod {
   static const String transfer = 'transferencia';
   static const String credit = 'credito';
   static const String dollar = 'dolar';
+  // Ya no se puede registrar: se conserva para mostrar los registros antiguos.
   static const String ownExpense = 'gasto_propio';
 
-  static const List<String> all = [cash, transfer, credit, dollar, ownExpense];
+  static const List<String> all = [cash, transfer, credit, dollar];
 
   static String label(String method) {
     switch (method) {

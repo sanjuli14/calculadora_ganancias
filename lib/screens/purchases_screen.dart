@@ -6,6 +6,7 @@ import '../models/product.dart';
 import '../models/purchase.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/closed_period_guard.dart';
 import '../utils/format.dart';
 
 class PurchasesScreen extends StatelessWidget {
@@ -119,8 +120,12 @@ class PurchasesScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) {
-      await db.deletePurchase(key);
+    if (confirmed == true && context.mounted) {
+      final done = await guardClosedPeriod(
+        context,
+        () => db.deletePurchase(key),
+      );
+      if (!done) return;
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -924,15 +929,18 @@ class _PurchaseFormScreenState extends State<_PurchaseFormScreen> {
           unitCost: line.unitCost,
         ),
     ];
-    await widget.db.addPurchase(
-      Purchase(
-        date: _date,
-        supplierName: _supplierController.text.trim(),
-        items: items,
-        totalCost: _totalCost,
+    final done = await guardClosedPeriod(
+      context,
+      () => widget.db.addPurchase(
+        Purchase(
+          date: _date,
+          supplierName: _supplierController.text.trim(),
+          items: items,
+          totalCost: _totalCost,
+        ),
       ),
     );
-    if (!mounted) return;
+    if (!done || !mounted) return;
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Compra registrada. Stock actualizado')),

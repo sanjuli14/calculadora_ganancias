@@ -6,6 +6,7 @@ import '../models/product.dart';
 import '../models/shrinkage.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/closed_period_guard.dart';
 import '../utils/format.dart';
 
 class ShrinkagesScreen extends StatelessWidget {
@@ -90,8 +91,12 @@ class ShrinkagesScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) {
-      await db.deleteShrinkage(key);
+    if (confirmed == true && context.mounted) {
+      final done = await guardClosedPeriod(
+        context,
+        () => db.deleteShrinkage(key),
+      );
+      if (!done) return;
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -505,17 +510,20 @@ class _ShrinkageFormScreenState extends State<_ShrinkageFormScreen> {
       );
       return;
     }
-    await widget.db.addShrinkage(
-      Shrinkage(
-        date: _date,
-        productName: product.name,
-        productId: product.productId,
-        quantity: quantity,
-        unitCost: product.buyPrice,
-        reason: _reason,
+    final done = await guardClosedPeriod(
+      context,
+      () => widget.db.addShrinkage(
+        Shrinkage(
+          date: _date,
+          productName: product.name,
+          productId: product.productId,
+          quantity: quantity,
+          unitCost: product.buyPrice,
+          reason: _reason,
+        ),
       ),
     );
-    if (!mounted) return;
+    if (!done || !mounted) return;
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Merma registrada. Stock actualizado')),

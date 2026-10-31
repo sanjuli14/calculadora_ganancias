@@ -6,6 +6,7 @@ import '../models/debt.dart';
 import '../models/product.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/closed_period_guard.dart';
 import '../utils/format.dart';
 import '../utils/payment_methods.dart';
 
@@ -290,15 +291,18 @@ class _FiadosScreenState extends State<FiadosScreen> {
                     );
                     return;
                   }
-                  await db.registerCreditSale(
-                    selected!,
-                    qty,
-                    name,
-                    note: noteController.text.trim().isEmpty
-                        ? null
-                        : noteController.text.trim(),
+                  final done = await guardClosedPeriod(
+                    context,
+                    () => db.registerCreditSale(
+                      selected!,
+                      qty,
+                      name,
+                      note: noteController.text.trim().isEmpty
+                          ? null
+                          : noteController.text.trim(),
+                    ),
                   );
-                  if (context.mounted) Navigator.pop(context);
+                  if (done && context.mounted) Navigator.pop(context);
                 },
                 child: const Text('Guardar'),
               ),
@@ -441,13 +445,16 @@ class _FiadosScreenState extends State<FiadosScreen> {
                     );
                     return;
                   }
-                  await db.addDebtPayment(
-                    key,
-                    amt,
-                    method,
-                    commissionAmount: applyCommission ? commission : null,
+                  final done = await guardClosedPeriod(
+                    context,
+                    () => db.addDebtPayment(
+                      key,
+                      amt,
+                      method,
+                      commissionAmount: applyCommission ? commission : null,
+                    ),
                   );
-                  if (context.mounted) Navigator.pop(context);
+                  if (done && context.mounted) Navigator.pop(context);
                 },
                 child: const Text('Guardar Abono'),
               ),

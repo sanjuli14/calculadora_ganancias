@@ -77,12 +77,6 @@ class _SellScreenState extends State<SellScreen> {
 
   int get _cartItemCount => _cart.fold(0, (sum, i) => sum + i.quantity);
 
-  bool get _isOwnExpense => _paymentMethod == PaymentMethod.ownExpense;
-
-  double get _cartTotal {
-    return _cart.fold(0.0, (s, i) => s + i.quantity * (i.product.buyPrice));
-  }
-
   void _addUnit(Product product) {
     if (product.stock <= 0) {
       _showSnack('${product.name}: agotado');
@@ -290,7 +284,6 @@ class _SellScreenState extends State<SellScreen> {
                   ..._cart.map(
                     (item) => _CartLine(
                       item: item,
-                      isOwnExpense: _isOwnExpense,
                       onChange: (delta) => _changeQuantity(item, delta),
                       onRemove: () => setState(() => _cart.remove(item)),
                     ),
@@ -440,8 +433,6 @@ class _SellScreenState extends State<SellScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _paymentMethod == PaymentMethod.credit
                         ? AppColors.turquoise
-                        : _paymentMethod == PaymentMethod.ownExpense
-                        ? AppColors.warning
                         : AppColors.emerald,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(
@@ -451,15 +442,11 @@ class _SellScreenState extends State<SellScreen> {
                   icon: Icon(
                     _paymentMethod == PaymentMethod.credit
                         ? Icons.handshake_outlined
-                        : _paymentMethod == PaymentMethod.ownExpense
-                        ? Icons.person_outline
                         : Icons.check_circle_outline,
                   ),
                   label: Text(
                     _paymentMethod == PaymentMethod.credit
                         ? 'REGISTRAR FIADO'
-                        : _paymentMethod == PaymentMethod.ownExpense
-                        ? 'REGISTRAR GASTO PROPIO'
                         : 'CONFIRMAR VENTA',
                   ),
                 ),
@@ -508,7 +495,6 @@ class _SellScreenState extends State<SellScreen> {
   Future<void> _commitSale(DatabaseService db) async {
     final now = DateTime.now();
     final lineCount = _cart.length;
-    final cartTotal = _cartTotal;
 
     if (_paymentMethod == PaymentMethod.credit) {
       final customer = _customerController.text.trim();
@@ -576,9 +562,6 @@ class _SellScreenState extends State<SellScreen> {
     }
     if (_paymentMethod == PaymentMethod.dollar && _exchangeRate != null) {
       parts.add('cambio ${formatMoney(_exchangeRate!)}');
-    }
-    if (_paymentMethod == PaymentMethod.ownExpense) {
-      parts.add('descontado ${formatMoney(cartTotal)} de la inversión');
     }
     _showSnack(
       '$lineCount venta${lineCount == 1 ? '' : 's'} registrada${lineCount == 1 ? '' : 's'} (${parts.join(', ')})',
@@ -777,22 +760,18 @@ class _ProductTile extends StatelessWidget {
 
 class _CartLine extends StatelessWidget {
   final _CartItem item;
-  final bool isOwnExpense;
   final ValueChanged<int> onChange;
   final VoidCallback onRemove;
 
   const _CartLine({
     required this.item,
-    required this.isOwnExpense,
     required this.onChange,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    final unitPrice = isOwnExpense
-        ? item.product.buyPrice
-        : item.product.sellPrice;
+    final unitPrice = item.product.sellPrice;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -821,7 +800,7 @@ class _CartLine extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${formatMoney(unitPrice)} ${isOwnExpense ? '(costo)' : ''}',
+                      formatMoney(unitPrice),
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -927,13 +906,6 @@ class _MethodSelector extends StatelessWidget {
               selected: selected,
               onTap: onChanged,
             ),
-            _MethodChip(
-              value: PaymentMethod.ownExpense,
-              icon: Icons.person_outline,
-              label: 'Gasto propio',
-              selected: selected,
-              onTap: onChanged,
-            ),
           ],
         ),
       ],
@@ -1013,13 +985,9 @@ class _SaleSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOwnExpense = paymentMethod == PaymentMethod.ownExpense;
     final total = cart.fold(
       0.0,
-      (s, i) =>
-          s +
-          i.quantity *
-              (isOwnExpense ? i.product.buyPrice : i.product.sellPrice),
+      (s, i) => s + i.quantity * i.product.sellPrice,
     );
     final profit = cart.fold(
       0.0,
@@ -1067,8 +1035,6 @@ class _SaleSummaryCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: isCredit
               ? [AppColors.turquoiseSoft, AppColors.navySoft]
-              : isOwnExpense
-              ? [AppColors.warningSoft, AppColors.navySoft]
               : [AppColors.navySoft, AppColors.emeraldSoft],
         ),
         borderRadius: BorderRadius.circular(20),
@@ -1096,9 +1062,7 @@ class _SaleSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isOwnExpense
-                    ? 'Costo unitario promedio'
-                    : 'Precio unitario promedio',
+                'Precio unitario promedio',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
               Text(
@@ -1115,11 +1079,7 @@ class _SaleSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isOwnExpense
-                    ? 'Total gasto propio'
-                    : isCredit
-                    ? 'Total a deber'
-                    : 'Total a Pagar',
+                isCredit ? 'Total a deber' : 'Total a Pagar',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -1136,29 +1096,6 @@ class _SaleSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          if (isOwnExpense) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Se descuenta de tu inversión',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  '-${formatMoney(total)}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.warning,
-                  ),
-                ),
-              ],
-            ),
-          ],
           if (isDollar) ...[
             const SizedBox(height: 8),
             Row(
@@ -1227,48 +1164,26 @@ class _SaleSummaryCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 8),
-          if (isOwnExpense)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'No genera ganancia',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Ganancia estimada',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
                 ),
-                Text(
-                  'Gasto propio',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.warning,
-                  ),
+              ),
+              Text(
+                '+${formatMoney(profit)}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.emerald,
                 ),
-              ],
-            )
-          else
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Ganancia estimada',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  '+${formatMoney(profit)}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.emerald,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
         ],
       ),
     );

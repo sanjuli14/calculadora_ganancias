@@ -42,7 +42,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final db = Provider.of<DatabaseService>(context);
 
     final customSales = (_customStart != null && _customEnd != null)
-        ? db.getSalesBetween(_customStart!, _customEnd!)
+        ? db.getSalesBetween(_customStart!, endOfDay(_customEnd!))
         : <Sale>[];
 
     final summary = db.calculateSummary(customSales);

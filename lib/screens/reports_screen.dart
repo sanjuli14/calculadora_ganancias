@@ -16,7 +16,7 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  String _period = 'all';
+  String _period = 'closing';
   DateTime? _customStart;
   DateTime? _customEnd;
 
@@ -33,9 +33,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
       case 'year':
         return (DateTime(now.year), now);
       case 'custom':
-        final start = _customStart ?? DateTime(2000);
-        final end = _customEnd ?? now;
-        return (start.isBefore(end) ? start : end, start.isBefore(end) ? end : start);
+        final first = _customStart ?? DateTime(2000);
+        final last = _customEnd ?? now;
+        return first.isBefore(last)
+            ? (first, endOfDay(last))
+            : (last, endOfDay(first));
       default:
         return (DateTime(2000), now);
     }
@@ -43,6 +45,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   String get _periodLabel {
     switch (_period) {
+      case 'closing':
+        final start = Provider.of<DatabaseService>(
+          context,
+          listen: false,
+        ).currentPeriodStart;
+        return start == null
+            ? 'Período actual'
+            : 'Desde el cierre del ${DateFormat('dd/MM/yyyy HH:mm').format(start)}';
       case 'today':
         return 'Hoy';
       case '7days':
@@ -133,23 +143,35 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget _buildBody(DatabaseService db) {
     final (start, end) = _range();
 
-    final invested = db.getPurchasesTotalBetween(start, end);
-    final revenue = db.getRevenueBetween(start, end);
-    final cogs = db.getCOGSBetween(start, end);
-    final grossProfit = db.getGrossProfitBetween(start, end);
-    final shrinkage = db.getShrinkageCostBetween(start, end);
-    final expenses = db.getExpensesBetween(start, end);
-    final netProfit = db.getNetProfitBetween(start, end);
+    // El período de cierre usa límites exactos, como el propio cierre.
+    final period = _period == 'closing' ? db.computeCurrentPeriod() : null;
+    final invested = period?.purchases ?? db.getPurchasesTotalBetween(start, end);
+    final revenue = period?.revenue ?? db.getRevenueBetween(start, end);
+    final cogs = period?.cogs ?? db.getCOGSBetween(start, end);
+    final grossProfit =
+        period?.grossProfit ?? db.getGrossProfitBetween(start, end);
+    final shrinkage =
+        period?.shrinkageCost ?? db.getShrinkageCostBetween(start, end);
+    final expenses = period?.expenses ?? db.getExpensesBetween(start, end);
+    final netProfit = period?.netProfit ?? db.getNetProfitBetween(start, end);
 
     final inventoryCost = db.getInvestedCapital();
     final inventoryValue = db.getInventoryValue();
     final historicCapital = db.getHistoricalCapitalInjected();
     final totalShrinkage = db.getTotalShrinkageCost();
-    final margin = db.getRealMargin(start, end) * 100;
-    final turnover = db.getInventoryTurnover(start, end);
+    final margin = period == null
+        ? db.getRealMargin(start, end) * 100
+        : (revenue > 0 ? grossProfit / revenue * 100 : 0.0);
+    final turnover = period == null
+        ? db.getInventoryTurnover(start, end)
+        : (inventoryCost > 0 ? cogs / inventoryCost : 0.0);
 
-    final periodPurchases = db.getPurchasesBetween(start, end);
-    final periodShrinkages = db.getShrinkagesBetween(start, end);
+    final periodPurchases = period == null
+        ? db.getPurchasesBetween(start, end)
+        : db.getPurchasesInPeriod(period.periodStart, period.closedAt);
+    final periodShrinkages = period == null
+        ? db.getShrinkagesBetween(start, end)
+        : db.getShrinkagesInPeriod(period.periodStart, period.closedAt);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -385,6 +407,7 @@ class _PeriodSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chips = <(String, String)>[
+      ('closing', 'Período'),
       ('all', 'Todo'),
       ('today', 'Hoy'),
       ('7days', '7 días'),
