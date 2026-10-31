@@ -1,5 +1,9 @@
 import 'package:intl/intl.dart';
 
+// Último instante del día de `date`.
+DateTime endOfDay(DateTime date) =>
+    DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
+
 // Moneda activa (configurable en Personalización). Cambiar esta variable y
 // llamar setCurrencyCode() actualiza todos los formatos de la app.
 const List<String> supportedCurrencyCodes = ['CUP', 'USD', 'EUR'];

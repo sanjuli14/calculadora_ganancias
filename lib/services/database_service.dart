@@ -15,14 +15,29 @@ import '../models/transfer_account.dart';
 import '../models/expense.dart';
 import '../models/purchase.dart';
 import '../models/shrinkage.dart';
+import '../models/inventory_closing.dart';
 import '../theme/app_palettes.dart';
+import '../utils/format.dart';
+
+// Se lanza al intentar cambiar un registro de un período ya cerrado.
+class ClosedPeriodException implements Exception {
+  final String message;
+
+  ClosedPeriodException([
+    this.message =
+        'Ese registro pertenece a un período cerrado y no se puede cambiar',
+  ]);
+
+  @override
+  String toString() => message;
+}
 
 class DatabaseService {
   // Versión del esquema de la base de datos.
   // Aumenta este número cuando agregues/cambies campos de un modelo y deja
   // la lógica de migración en _migrate(). Así las actualizaciones nunca
   // pierden los datos del usuario.
-  static const int _schemaVersion = 5;
+  static const int _schemaVersion = 6;
 
   late Box<Product> _productsBox;
   late Box<Sale> _salesBox;
@@ -33,6 +48,7 @@ class DatabaseService {
   late Box<Expense> _expensesBox;
   late Box<Purchase> _purchasesBox;
   late Box<Shrinkage> _shrinkagesBox;
+  late Box<InventoryClosing> _closingsBox;
   late Box _metaBox;
 
   Box<Product> get productsBox => _productsBox;
@@ -44,6 +60,7 @@ class DatabaseService {
   Box<Expense> get expensesBox => _expensesBox;
   Box<Purchase> get purchasesBox => _purchasesBox;
   Box<Shrinkage> get shrinkagesBox => _shrinkagesBox;
+  Box<InventoryClosing> get closingsBox => _closingsBox;
 
   bool get onboardingSeen =>
       _metaBox.get('onboarding_seen', defaultValue: false) as bool;
@@ -211,6 +228,12 @@ class DatabaseService {
 
   Future<void> init() async {
     await Hive.initFlutter();
+    await openBoxes();
+  }
+
+  // Separado de init() para poder abrir las boxes en pruebas con Hive.init().
+  @visibleForTesting
+  Future<void> openBoxes() async {
     Hive.registerAdapter(ProductAdapter());
     Hive.registerAdapter(SaleAdapter());
     Hive.registerAdapter(CashCountAdapter());
@@ -221,6 +244,7 @@ class DatabaseService {
     Hive.registerAdapter(PurchaseItemAdapter());
     Hive.registerAdapter(PurchaseAdapter());
     Hive.registerAdapter(ShrinkageAdapter());
+    Hive.registerAdapter(InventoryClosingAdapter());
 
     // Abre la box de metadatos (versión de esquema) de forma segura.
     try {
@@ -243,6 +267,7 @@ class DatabaseService {
     _expensesBox = await _openBoxSafely<Expense>('expenses');
     _purchasesBox = await _openBoxSafely<Purchase>('purchases');
     _shrinkagesBox = await _openBoxSafely<Shrinkage>('shrinkages');
+    _closingsBox = await _openBoxSafely<InventoryClosing>('closings');
 
     await _migrate();
   }
@@ -274,6 +299,8 @@ class DatabaseService {
     // (shrinkages). Ambas se abren en init() sin datos previos que migrar;
     // solo se actualiza el número de esquema.
     //
+    // v6: se agregó la box de cierres de inventario (closings). Se abre en
+    // init() sin datos previos que migrar.
 
     if (current < 5) {
       await _migrateToV5();
@@ -369,6 +396,10 @@ class DatabaseService {
   ValueListenable<Box<Shrinkage>> get shrinkagesListenable =>
       _shrinkagesBox.listenable();
 
+  // Avisa cuando cambia el inicio del período (cierre nuevo o fecha manual).
+  Listenable get periodListenable =>
+      Listenable.merge([_closingsBox.listenable(), _metaBox.listenable()]);
+
   // Product CRUD
   Future<void> addProduct(Product product) async {
     product.ensureId();
@@ -425,6 +456,7 @@ class DatabaseService {
   // vuelve a buscar en la box (por ID estable) para no escribir sobre una
   // copia vieja que haya quedado en memoria tras una fusión o restauración.
   Future<void> registerSale(Sale sale) async {
+    _ensureClockAfterClosing(sale.date);
     final product = _productByIdOrName(sale.productId, sale.productName);
     if (product == null) {
       throw StateError('El producto ${sale.productName} ya no existe');
@@ -443,23 +475,19 @@ class DatabaseService {
 
   Future<void> addSale(Sale sale) async {
     await _salesBox.add(sale);
-    // Los gastos propios no se cobran: se descuentan automáticamente del
-    // total invertido usando el precio de compra.
-    if (sale.isOwnExpense) {
-      await setTotalInvestment(totalInvestment - sale.ownExpenseCost);
-    }
   }
 
   Future<void> deleteSale(dynamic key) async {
     final sale = _salesBox.get(key);
     if (sale != null) {
+      _ensureOpenPeriod(sale.date);
       // Restaura el stock del producto (por ID estable o por nombre).
       final product = _productByIdOrName(sale.productId, sale.productName);
       if (product != null) {
         product.stock += sale.quantity;
         await product.save();
       }
-      // Al eliminar un gasto propio, se devuelve el importe a la inversión.
+      // Gastos propios antiguos: al eliminarlos se devuelve a la inversión.
       if (sale.isOwnExpense) {
         await setTotalInvestment(totalInvestment + sale.ownExpenseCost);
       }
@@ -467,12 +495,17 @@ class DatabaseService {
     await _salesBox.delete(key);
   }
 
+  // Rango con ambos límites incluidos. Para abarcar un día completo hay que
+  // pasar `end` con endOfDay().
+  bool _inRange(DateTime date, DateTime start, DateTime end) {
+    return !date.isBefore(start) && !date.isAfter(end);
+  }
+
   // Get sales between dates
   List<Sale> getSalesBetween(DateTime start, DateTime end) {
-    return _salesBox.values.where((sale) {
-      return sale.date.isAfter(start.subtract(const Duration(days: 1))) &&
-          sale.date.isBefore(end.add(const Duration(days: 1)));
-    }).toList();
+    return _salesBox.values
+        .where((sale) => _inRange(sale.date, start, end))
+        .toList();
   }
 
   // ---- Historial de productos (desde el libro de ventas) ----
@@ -498,40 +531,32 @@ class DatabaseService {
     return sales;
   }
 
-  // Get weekly sales (from previous inventory day to current inventory day)
+  // Ventas de la semana en curso: desde el último día de inventario
+  // (incluido) hasta hoy.
   List<Sale> getWeeklySalesCustom(int inventoryDay) {
     final now = DateTime.now();
-    // Find the most recent inventory day
-    int daysSinceInventory = (now.weekday - inventoryDay) % 7;
-    if (daysSinceInventory < 0) daysSinceInventory += 7;
-    final currentInventory = now.subtract(Duration(days: daysSinceInventory));
-    final previousInventory = currentInventory.subtract(
-      const Duration(days: 7),
-    );
-    return getSalesBetween(previousInventory, currentInventory);
+    final daysSinceInventory = (now.weekday - inventoryDay) % 7;
+    final start = DateTime(now.year, now.month, now.day - daysSinceInventory);
+    return getSalesBetween(start, endOfDay(now));
   }
 
   // Get monthly sales (current month)
   List<Sale> getMonthlySales() {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0);
-    return getSalesBetween(startOfMonth, endOfMonth);
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    return getSalesBetween(startOfMonth, endOfDay(lastDayOfMonth));
   }
 
   // Get today's sales only
   List<Sale> getTodaySales() {
     final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
-    return getSalesBetween(start, end);
+    return getSalesBetween(DateTime(now.year, now.month, now.day), endOfDay(now));
   }
 
   // Get sales of a specific day (local midnight to 23:59).
   List<Sale> getSalesForDay(DateTime day) {
-    final start = DateTime(day.year, day.month, day.day);
-    final end = DateTime(day.year, day.month, day.day, 23, 59, 59);
-    return getSalesBetween(start, end);
+    return getSalesBetween(DateTime(day.year, day.month, day.day), endOfDay(day));
   }
 
   // Calculate summary from sales list
@@ -778,14 +803,20 @@ class DatabaseService {
   // ---- Gastos (independientes de las ventas) ----
 
   Future<void> addExpense(Expense expense) async {
+    _ensureOpenPeriod(expense.date);
     await _expensesBox.add(expense);
   }
 
   Future<void> updateExpense(dynamic key, Expense expense) async {
+    final previous = _expensesBox.get(key);
+    if (previous != null) _ensureOpenPeriod(previous.date);
+    _ensureOpenPeriod(expense.date);
     await _expensesBox.put(key, expense);
   }
 
   Future<void> deleteExpense(dynamic key) async {
+    final expense = _expensesBox.get(key);
+    if (expense != null) _ensureOpenPeriod(expense.date);
     await _expensesBox.delete(key);
   }
 
@@ -816,6 +847,7 @@ class DatabaseService {
   // Registra una compra y sube el stock de cada producto del lote.
   // El histórico queda guardado sin importar el stock que haya después.
   Future<void> addPurchase(Purchase purchase) async {
+    _ensureOpenPeriod(purchase.date);
     for (final item in purchase.items) {
       await _addStockByName(
         item.productName,
@@ -831,6 +863,7 @@ class DatabaseService {
   Future<void> deletePurchase(dynamic key) async {
     final purchase = _purchasesBox.get(key);
     if (purchase != null) {
+      _ensureOpenPeriod(purchase.date);
       for (final item in purchase.items) {
         await _removeStockByName(
           item.productName,
@@ -849,10 +882,9 @@ class DatabaseService {
   }
 
   List<Purchase> getPurchasesBetween(DateTime start, DateTime end) {
-    return _purchasesBox.values.where((p) {
-      return p.date.isAfter(start.subtract(const Duration(days: 1))) &&
-          p.date.isBefore(end.add(const Duration(days: 1)));
-    }).toList();
+    return _purchasesBox.values
+        .where((p) => _inRange(p.date, start, end))
+        .toList();
   }
 
   double getPurchasesTotal() {
@@ -875,6 +907,7 @@ class DatabaseService {
 
   // Registra una merma y baja el stock del producto (sin dejar negativo).
   Future<void> addShrinkage(Shrinkage shrinkage) async {
+    _ensureOpenPeriod(shrinkage.date);
     await _removeStockByName(
       shrinkage.productName,
       shrinkage.quantity,
@@ -887,6 +920,7 @@ class DatabaseService {
   Future<void> deleteShrinkage(dynamic key) async {
     final shrinkage = _shrinkagesBox.get(key);
     if (shrinkage != null) {
+      _ensureOpenPeriod(shrinkage.date);
       await _addStockByName(
         shrinkage.productName,
         shrinkage.quantity,
@@ -903,10 +937,9 @@ class DatabaseService {
   }
 
   List<Shrinkage> getShrinkagesBetween(DateTime start, DateTime end) {
-    return _shrinkagesBox.values.where((s) {
-      return s.date.isAfter(start.subtract(const Duration(days: 1))) &&
-          s.date.isBefore(end.add(const Duration(days: 1)));
-    }).toList();
+    return _shrinkagesBox.values
+        .where((s) => _inRange(s.date, start, end))
+        .toList();
   }
 
   double getShrinkageCostBetween(DateTime start, DateTime end) {
@@ -923,6 +956,186 @@ class DatabaseService {
       total += s.cost;
     }
     return total;
+  }
+
+  // ---- Cierres de inventario ----
+
+  static const String _manualLastClosingKey = 'manual_last_closing';
+
+  // Sobrantes ya aplicados de un cierre que aún no terminó. Se guardan para
+  // no perderlos si el cierre falla a mitad y se reintenta.
+  static const String _pendingSurplusKey = 'pending_closing_surplus';
+
+  // Cierres guardados, del más antiguo al más reciente.
+  List<InventoryClosing> getClosings() {
+    return _closingsBox.values.toList()
+      ..sort((a, b) => a.closedAt.compareTo(b.closedAt));
+  }
+
+  InventoryClosing? get lastClosing {
+    final closings = getClosings();
+    return closings.isEmpty ? null : closings.last;
+  }
+
+  // Fecha del último cierre hecho fuera de la app. Solo marca dónde empieza
+  // el primer período: no bloquea registros porque no guarda ninguna foto.
+  DateTime? get manualLastClosing {
+    final raw = _metaBox.get(_manualLastClosingKey) as String?;
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  // Solo se puede cambiar antes del primer cierre real.
+  Future<void> setManualLastClosing(DateTime? date) async {
+    if (_closingsBox.isNotEmpty) {
+      throw StateError('Ya hay cierres guardados en la app');
+    }
+    if (date == null) {
+      await _metaBox.delete(_manualLastClosingKey);
+    } else {
+      await _metaBox.put(_manualLastClosingKey, date.toIso8601String());
+    }
+  }
+
+  // Inicio del período en curso (null = desde el inicio de los datos).
+  DateTime? get currentPeriodStart =>
+      lastClosing?.closedAt ?? manualLastClosing;
+
+  void _ensureOpenPeriod(DateTime date) {
+    final closedAt = lastClosing?.closedAt;
+    if (closedAt != null && !date.isAfter(closedAt)) {
+      throw ClosedPeriodException();
+    }
+  }
+
+  // Las ventas, fiados y cobros se fechan con el reloj del teléfono: si está
+  // atrasado caerían en un período cerrado y no contarían en ninguno.
+  void _ensureClockAfterClosing(DateTime date) {
+    final closedAt = lastClosing?.closedAt;
+    if (closedAt != null && !date.isAfter(closedAt)) {
+      throw ClosedPeriodException(
+        'La fecha del teléfono es anterior al último cierre. Corrígela',
+      );
+    }
+  }
+
+  // El período va justo después de `start` hasta `end` incluido: un registro
+  // hecho en el instante del cierre queda solo en el período que se cierra.
+  bool _inPeriod(DateTime date, DateTime? start, DateTime end) {
+    return (start == null || date.isAfter(start)) && !date.isAfter(end);
+  }
+
+  List<Sale> getSalesInPeriod(DateTime? start, DateTime end) {
+    return _salesBox.values
+        .where((s) => _inPeriod(s.date, start, end))
+        .toList();
+  }
+
+  List<Sale> getCurrentPeriodSales() =>
+      getSalesInPeriod(currentPeriodStart, DateTime.now());
+
+  List<Purchase> getPurchasesInPeriod(DateTime? start, DateTime end) {
+    return _purchasesBox.values
+        .where((p) => _inPeriod(p.date, start, end))
+        .toList();
+  }
+
+  List<Shrinkage> getShrinkagesInPeriod(DateTime? start, DateTime end) {
+    return _shrinkagesBox.values
+        .where((s) => _inPeriod(s.date, start, end))
+        .toList();
+  }
+
+  // Calcula los números de un período. El resultado no se guarda.
+  InventoryClosing computePeriod(DateTime? start, DateTime end) {
+    final result = InventoryClosing(periodStart: start, closedAt: end);
+
+    for (final sale in getSalesInPeriod(start, end)) {
+      if (sale.isOwnExpense) continue;
+      result.salesCount++;
+      result.unitsSold += sale.quantity;
+      result.revenue += sale.total;
+      result.cogs += sale.unitBuyPrice * sale.quantity;
+      result.commissions += sale.commission;
+    }
+    for (final shrinkage in getShrinkagesInPeriod(start, end)) {
+      result.shrinkageCost += shrinkage.cost;
+    }
+    for (final expense in _expensesBox.values) {
+      if (_inPeriod(expense.date, start, end)) {
+        result.expenses += expense.amount;
+      }
+    }
+    for (final purchase in getPurchasesInPeriod(start, end)) {
+      result.purchases += purchase.totalCost;
+    }
+    for (final debt in _debtsBox.values) {
+      if (_inPeriod(debt.date, start, end)) {
+        result.creditSold += debt.total;
+      }
+      // Cada cobro aporta la parte de ganancia que le corresponde.
+      final margin = debt.unitPrice > 0
+          ? (debt.unitPrice - debt.unitCost) / debt.unitPrice
+          : 0.0;
+      for (final payment in debt.payments) {
+        if (_inPeriod(payment.date, start, end)) {
+          result.creditCollected += payment.amount;
+          result.creditProfitCollected += payment.amount * margin;
+          result.commissions += payment.commissionAmount ?? 0;
+        }
+      }
+    }
+    result.creditOutstanding = getTotalOutstanding();
+    for (final product in _productsBox.values) {
+      result.stockUnits += product.stock;
+    }
+    result.stockCost = getInvestedCapital();
+    result.stockValue = getInventoryValue();
+    return result;
+  }
+
+  InventoryClosing computeCurrentPeriod() =>
+      computePeriod(currentPeriodStart, DateTime.now());
+
+  // Cierra el período en curso. `counted` trae las unidades contadas por
+  // producto (clave de la box); lo que falta se registra como merma y lo que
+  // sobra se suma al stock. Los productos no incluidos no se tocan.
+  Future<InventoryClosing> closeInventory({
+    Map<dynamic, int> counted = const {},
+  }) async {
+    final start = currentPeriodStart;
+    if (start != null && !DateTime.now().isAfter(start)) {
+      throw StateError('La fecha del teléfono es anterior al último cierre');
+    }
+    var surplus = _metaBox.get(_pendingSurplusKey, defaultValue: 0) as int;
+
+    for (final entry in counted.entries) {
+      final product = _productsBox.get(entry.key);
+      if (product == null) continue;
+      final difference = entry.value - product.stock;
+      if (difference < 0) {
+        await addShrinkage(
+          Shrinkage(
+            date: DateTime.now(),
+            productName: product.name,
+            productId: product.productId,
+            quantity: -difference,
+            unitCost: product.buyPrice,
+            reason: Shrinkage.closingAdjustmentReason,
+          ),
+        );
+      } else if (difference > 0) {
+        product.stock = entry.value;
+        await product.save();
+        surplus += difference;
+        await _metaBox.put(_pendingSurplusKey, surplus);
+      }
+    }
+
+    final closing = computePeriod(start, DateTime.now())
+      ..surplusUnits = surplus;
+    await _closingsBox.add(closing);
+    await _metaBox.delete(_pendingSurplusKey);
+    return closing;
   }
 
   // ---- Indicadores financieros (libro mayor) ----
@@ -956,10 +1169,7 @@ class DatabaseService {
   double getExpensesBetween(DateTime start, DateTime end) {
     double total = 0;
     for (final e in _expensesBox.values) {
-      if (!e.date.isBefore(start) &&
-          !e.date.isAfter(end.add(const Duration(days: 1)))) {
-        total += e.amount;
-      }
+      if (_inRange(e.date, start, end)) total += e.amount;
     }
     return total;
   }
@@ -1026,6 +1236,8 @@ class DatabaseService {
     String customerName, {
     String? note,
   }) async {
+    final now = DateTime.now();
+    _ensureClockAfterClosing(now);
     // Se usa la versión actual de la box, no la copia que llega de la UI.
     final current = findProduct(product);
     if (current == null) {
@@ -1041,7 +1253,7 @@ class DatabaseService {
       unitPrice: current.sellPrice,
       quantity: quantity,
       unitCost: current.buyPrice,
-      date: DateTime.now(),
+      date: now,
       note: note,
     );
     try {
@@ -1062,10 +1274,12 @@ class DatabaseService {
   }) async {
     final debt = _debtsBox.get(debtKey);
     if (debt == null) return;
+    final now = DateTime.now();
+    _ensureClockAfterClosing(now);
     debt.payments.add(
       Payment(
         amount: amount,
-        date: DateTime.now(),
+        date: now,
         method: method,
         commissionAmount: commissionAmount,
       ),
@@ -1192,6 +1406,8 @@ class DatabaseService {
       'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
       'purchases': _purchasesBox.values.map((p) => p.toJson()).toList(),
       'shrinkages': _shrinkagesBox.values.map((s) => s.toJson()).toList(),
+      'closings': _closingsBox.values.map((c) => c.toJson()).toList(),
+      'manualLastClosing': manualLastClosing?.toIso8601String(),
       'totalInvestment': totalInvestment,
       'date': DateTime.now().toIso8601String(),
     };
@@ -1233,6 +1449,8 @@ class DatabaseService {
         'expenses': _expensesBox.values.map((e) => e.toJson()).toList(),
         'purchases': _purchasesBox.values.map((p) => p.toJson()).toList(),
         'shrinkages': _shrinkagesBox.values.map((s) => s.toJson()).toList(),
+        'closings': _closingsBox.values.map((c) => c.toJson()).toList(),
+        'manualLastClosing': manualLastClosing?.toIso8601String(),
         'totalInvestment': totalInvestment,
         'date': DateTime.now().toIso8601String(),
       };
@@ -1351,6 +1569,9 @@ class DatabaseService {
       await _expensesBox.clear();
       await _purchasesBox.clear();
       await _shrinkagesBox.clear();
+      await _closingsBox.clear();
+      await _metaBox.delete(_manualLastClosingKey);
+      await _metaBox.delete(_pendingSurplusKey);
 
       final products = (backup['products'] as List)
           .map((i) => Product.fromJson(i))
@@ -1432,6 +1653,23 @@ class DatabaseService {
         if (shrinkages.isNotEmpty) {
           await _shrinkagesBox.addAll(shrinkages);
         }
+      }
+
+      // Cierres (opcional: los backups anteriores no los traen).
+      if (backup['closings'] is List) {
+        final closings = (backup['closings'] as List)
+            .whereType<Map>()
+            .map((i) => InventoryClosing.fromJson(Map<String, dynamic>.from(i)))
+            .toList();
+        if (closings.isNotEmpty) {
+          await _closingsBox.addAll(closings);
+        }
+      }
+      if (backup['manualLastClosing'] is String) {
+        await _metaBox.put(
+          _manualLastClosingKey,
+          backup['manualLastClosing'] as String,
+        );
       }
 
       // Inversión total (opcional: los backups viejos no la traen).

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../notifiers/nav_notifier.dart';
 import '../models/sale.dart';
@@ -31,329 +32,345 @@ class DashboardScreen extends StatelessWidget {
                   builder: (context, productsBox, _) {
                     return ValueListenableBuilder(
                       valueListenable: db.debtsListenable,
-                      builder: (context, debtsBox, _) {
-                        final allSales = salesBox.values.toList().cast<Sale>();
-                        final totalRevenue = allSales.fold(
-                          0.0,
-                          (s, x) => s + x.total,
-                        );
-                        final totalProfit = allSales.fold(
-                          0.0,
-                          (s, x) => s + x.profit,
-                        );
-                        final lowStock = db.getLowStockProducts();
+                      builder: (context, debtsBox, _) => ValueListenableBuilder(
+                        valueListenable: db.closingsBox.listenable(),
+                        builder: (context, closingsBox, _) {
+                          final allSales = salesBox.values
+                              .toList()
+                              .cast<Sale>();
+                          final periodSales = db.getCurrentPeriodSales();
+                          final totalRevenue = periodSales.fold(
+                            0.0,
+                            (s, x) => s + x.total,
+                          );
+                          final totalProfit = periodSales.fold(
+                            0.0,
+                            (s, x) => s + x.profit,
+                          );
+                          final lowStock = db.getLowStockProducts();
 
-                        final now = DateTime.now();
-                        final greeting = _greeting(now.hour);
-                        final dateStr = DateFormat(
-                          'EEEE, d MMMM yyyy',
-                          'es',
-                        ).format(now);
+                          final now = DateTime.now();
+                          final greeting = _greeting(now.hour);
+                          final dateStr = DateFormat(
+                            'EEEE, d MMMM yyyy',
+                            'es',
+                          ).format(now);
 
-                        return RefreshIndicator(
-                          onRefresh: () async {},
-                          child: CustomScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            slivers: [
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    20,
-                                    8,
-                                    20,
-                                    8,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                FittedBox(
-                                                  fit: BoxFit.scaleDown,
-                                                  alignment:
-                                                      Alignment.centerLeft,
-                                                  child: Text(
-                                                    '$greeting 👋',
-                                                    style: TextStyle(
-                                                      color:
-                                                          AppColors.textPrimary,
-                                                      fontSize: 22,
-                                                      fontWeight:
-                                                          FontWeight.w800,
+                          return RefreshIndicator(
+                            onRefresh: () async {},
+                            child: CustomScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              slivers: [
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      20,
+                                      8,
+                                      20,
+                                      8,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  FittedBox(
+                                                    fit: BoxFit.scaleDown,
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: Text(
+                                                      '$greeting 👋',
+                                                      style: TextStyle(
+                                                        color: AppColors
+                                                            .textPrimary,
+                                                        fontSize: 22,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  dateStr[0].toUpperCase() +
-                                                      dateStr.substring(1),
-                                                  style: TextStyle(
-                                                    color:
-                                                        AppColors.textSecondary,
-                                                    fontSize: 13,
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    dateStr[0].toUpperCase() +
+                                                        dateStr.substring(1),
+                                                    style: TextStyle(
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                      fontSize: 13,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          IconButton(
-                                            tooltip: 'Resumen por fechas',
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      const SummaryScreen(),
-                                                ),
-                                              );
-                                            },
-                                            style: IconButton.styleFrom(
-                                              backgroundColor:
-                                                  AppColors.surface,
-                                              side: BorderSide(
-                                                color: AppColors.border,
+                                                ],
                                               ),
                                             ),
-                                            icon: Icon(
-                                              Icons.calendar_month,
-                                              color: AppColors.navy,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          IconButton(
-                                            tooltip: 'Ayuda',
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      const HelpScreen(),
-                                                ),
-                                              );
-                                            },
-                                            style: IconButton.styleFrom(
-                                              backgroundColor:
-                                                  AppColors.surface,
-                                              side: BorderSide(
-                                                color: AppColors.border,
-                                              ),
-                                            ),
-                                            icon: Icon(
-                                              Icons.help_outline,
-                                              color: AppColors.navy,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      _HeroCard(
-                                        totalProfit: totalProfit,
-                                        totalRevenue: totalRevenue,
-                                        salesCount: allSales.length,
-                                      ),
-                                      const SizedBox(height: 20),
-                                      _InvestmentCard(
-                                        totalInvestment: db.totalInvestment,
-                                        onEdit: () =>
-                                            _editInvestment(context, db),
-                                      ),
-                                      const SizedBox(height: 20),
-                                      const SectionHeader(
-                                        title: 'Acciones rápidas',
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _QuickAction(
-                                              icon: Icons.add_shopping_cart,
-                                              label: 'Nueva Venta',
-                                              color: AppColors.emerald,
-                                              onTap: () {
-                                                Provider.of<MainNavNotifier>(
+                                            const SizedBox(width: 8),
+                                            IconButton(
+                                              tooltip: 'Resumen por fechas',
+                                              onPressed: () {
+                                                Navigator.push(
                                                   context,
-                                                  listen: false,
-                                                ).goTo(2);
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        const SummaryScreen(),
+                                                  ),
+                                                );
                                               },
+                                              style: IconButton.styleFrom(
+                                                backgroundColor:
+                                                    AppColors.surface,
+                                                side: BorderSide(
+                                                  color: AppColors.border,
+                                                ),
+                                              ),
+                                              icon: Icon(
+                                                Icons.calendar_month,
+                                                color: AppColors.navy,
+                                              ),
                                             ),
+                                            const SizedBox(width: 8),
+                                            IconButton(
+                                              tooltip: 'Ayuda',
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        const HelpScreen(),
+                                                  ),
+                                                );
+                                              },
+                                              style: IconButton.styleFrom(
+                                                backgroundColor:
+                                                    AppColors.surface,
+                                                side: BorderSide(
+                                                  color: AppColors.border,
+                                                ),
+                                              ),
+                                              icon: Icon(
+                                                Icons.help_outline,
+                                                color: AppColors.navy,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        _HeroCard(
+                                          totalProfit: totalProfit,
+                                          totalRevenue: totalRevenue,
+                                          salesCount: periodSales
+                                              .where((s) => !s.isOwnExpense)
+                                              .length,
+                                          periodStart: db.currentPeriodStart,
+                                        ),
+                                        const SizedBox(height: 20),
+                                        _InvestmentCard(
+                                          totalInvestment: db.totalInvestment,
+                                          onEdit: () =>
+                                              _editInvestment(context, db),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        const SectionHeader(
+                                          title: 'Acciones rápidas',
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _QuickAction(
+                                                icon: Icons.add_shopping_cart,
+                                                label: 'Nueva Venta',
+                                                color: AppColors.emerald,
+                                                onTap: () {
+                                                  Provider.of<MainNavNotifier>(
+                                                    context,
+                                                    listen: false,
+                                                  ).goTo(2);
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: _QuickAction(
+                                                icon:
+                                                    Icons.inventory_2_outlined,
+                                                label: 'Nuevo Producto',
+                                                color: AppColors.navy,
+                                                onTap: () {
+                                                  Provider.of<MainNavNotifier>(
+                                                    context,
+                                                    listen: false,
+                                                  ).goTo(1);
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _QuickAction(
+                                                icon: Icons.payments_outlined,
+                                                label: 'Caja Contable',
+                                                color: AppColors.turquoise,
+                                                onTap: () {
+                                                  Provider.of<MainNavNotifier>(
+                                                    context,
+                                                    listen: false,
+                                                  ).goTo(4);
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: _QuickAction(
+                                                icon: Icons.handshake_outlined,
+                                                label: 'Cuentas por Cobrar',
+                                                color: AppColors.warning,
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          const FiadosScreen(),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (lowStock.isNotEmpty) ...[
+                                  const SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: EdgeInsets.fromLTRB(
+                                        20,
+                                        20,
+                                        20,
+                                        0,
+                                      ),
+                                      child: SectionHeader(
+                                        title: 'Alerta de stock bajo',
+                                      ),
+                                    ),
+                                  ),
+                                  SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        20,
+                                        12,
+                                        20,
+                                        8,
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.warningSoft,
+                                          borderRadius: BorderRadius.circular(
+                                            16,
                                           ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: _QuickAction(
-                                              icon: Icons.inventory_2_outlined,
-                                              label: 'Nuevo Producto',
-                                              color: AppColors.navy,
-                                              onTap: () {
+                                          border: Border.all(
+                                            color: AppColors.warning
+                                                .withOpacity(0.4),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.warning_amber_rounded,
+                                              color: AppColors.warning,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                '${lowStock.length} producto${lowStock.length == 1 ? '' : 's'} con stock bajo o agotado.',
+                                                style: TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
                                                 Provider.of<MainNavNotifier>(
                                                   context,
                                                   listen: false,
                                                 ).goTo(1);
                                               },
+                                              child: const Text('Ver'),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _QuickAction(
-                                              icon: Icons.payments_outlined,
-                                              label: 'Caja Contable',
-                                              color: AppColors.turquoise,
-                                              onTap: () {
-                                                Provider.of<MainNavNotifier>(
-                                                  context,
-                                                  listen: false,
-                                                ).goTo(4);
-                                              },
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: _QuickAction(
-                                              icon: Icons.handshake_outlined,
-                                              label: 'Cuentas por Cobrar',
-                                              color: AppColors.warning,
-                                              onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        const FiadosScreen(),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              if (lowStock.isNotEmpty) ...[
-                                const SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
-                                    child: SectionHeader(
-                                      title: 'Alerta de stock bajo',
-                                    ),
-                                  ),
-                                ),
-                                SliverToBoxAdapter(
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      20,
-                                      12,
-                                      20,
-                                      8,
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.warningSoft,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: AppColors.warning.withOpacity(
-                                            0.4,
-                                          ),
+                                          ],
                                         ),
                                       ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.warning_amber_rounded,
-                                            color: AppColors.warning,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              '${lowStock.length} producto${lowStock.length == 1 ? '' : 's'} con stock bajo o agotado.',
-                                              style: TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              Provider.of<MainNavNotifier>(
-                                                context,
-                                                listen: false,
-                                              ).goTo(1);
-                                            },
-                                            child: const Text('Ver'),
-                                          ),
-                                        ],
+                                    ),
+                                  ),
+                                ],
+                                if (allSales.isNotEmpty) ...[
+                                  SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        20,
+                                        20,
+                                        20,
+                                        12,
+                                      ),
+                                      child: SectionHeader(
+                                        title: 'Ventas recientes',
+                                        trailing: TextButton(
+                                          onPressed: () {
+                                            Provider.of<MainNavNotifier>(
+                                              context,
+                                              listen: false,
+                                            ).goTo(3);
+                                          },
+                                          child: const Text('Ver todas'),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                              if (allSales.isNotEmpty) ...[
-                                SliverToBoxAdapter(
-                                  child: Padding(
+                                  SliverPadding(
                                     padding: const EdgeInsets.fromLTRB(
                                       20,
+                                      0,
                                       20,
-                                      20,
-                                      12,
+                                      24,
                                     ),
-                                    child: SectionHeader(
-                                      title: 'Ventas recientes',
-                                      trailing: TextButton(
-                                        onPressed: () {
-                                          Provider.of<MainNavNotifier>(
-                                            context,
-                                            listen: false,
-                                          ).goTo(3);
+                                    sliver: SliverList(
+                                      delegate: SliverChildBuilderDelegate(
+                                        (context, index) {
+                                          final sale =
+                                              allSales[allSales.length -
+                                                  1 -
+                                                  index];
+                                          return _RecentSaleTile(sale: sale);
                                         },
-                                        child: const Text('Ver todas'),
+                                        childCount: allSales.length > 4
+                                            ? 4
+                                            : allSales.length,
                                       ),
                                     ),
                                   ),
-                                ),
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    20,
-                                    0,
-                                    20,
-                                    24,
-                                  ),
-                                  sliver: SliverList(
-                                    delegate: SliverChildBuilderDelegate(
-                                      (context, index) {
-                                        final sale =
-                                            allSales[allSales.length -
-                                                1 -
-                                                index];
-                                        return _RecentSaleTile(sale: sale);
-                                      },
-                                      childCount: allSales.length > 4
-                                          ? 4
-                                          : allSales.length,
-                                    ),
-                                  ),
-                                ),
+                                ],
                               ],
-                            ],
-                          ),
-                        );
-                      },
+                            ),
+                          );
+                        },
+                      ),
                     );
                   },
                 );
@@ -428,11 +445,13 @@ class _HeroCard extends StatelessWidget {
   final double totalProfit;
   final double totalRevenue;
   final int salesCount;
+  final DateTime? periodStart;
 
   const _HeroCard({
     required this.totalProfit,
     required this.totalRevenue,
     required this.salesCount,
+    required this.periodStart,
   });
 
   @override
@@ -458,13 +477,15 @@ class _HeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.savings_outlined, color: Colors.white, size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.savings_outlined, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
               Text(
-                'Ganancia total',
-                style: TextStyle(
+                periodStart == null
+                    ? 'Ganancia del período'
+                    : 'Ganancia desde ${DateFormat('dd/MM/yyyy').format(periodStart!)}',
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

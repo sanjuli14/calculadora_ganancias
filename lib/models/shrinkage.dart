@@ -23,6 +23,9 @@ class Shrinkage extends HiveObject {
   @HiveField(5)
   String? productId;
 
+  // Faltante detectado en el conteo físico de un cierre de inventario.
+  static const String closingAdjustmentReason = 'Ajuste de cierre';
+
   static const List<String> reasons = [
     'Vencimiento',
     'Rotura',

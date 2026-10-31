@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/sale.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/closed_period_guard.dart';
 import '../utils/format.dart';
 
 class DailyInventoryScreen extends StatelessWidget {
@@ -537,8 +538,12 @@ class _DaySalesScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) {
-      await db.deleteSale(key);
+    if (confirmed == true && context.mounted) {
+      final done = await guardClosedPeriod(
+        context,
+        () => db.deleteSale(key),
+      );
+      if (!done) return;
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,

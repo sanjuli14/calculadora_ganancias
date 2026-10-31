@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/closed_period_guard.dart';
 import '../utils/format.dart';
 
 class ExpensesScreen extends StatelessWidget {
@@ -156,8 +157,8 @@ class ExpensesScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) {
-      await db.deleteExpense(expense.key);
+    if (confirmed == true && context.mounted) {
+      await guardClosedPeriod(context, () => db.deleteExpense(expense.key));
     }
   }
 }
@@ -462,12 +463,14 @@ class _ExpenseFormScreenState extends State<_ExpenseFormScreen> {
       date: _date,
     );
 
-    if (_isEditing) {
-      await db.updateExpense(widget.expense!.key, expense);
-    } else {
-      await db.addExpense(expense);
-    }
-    if (mounted) Navigator.of(context).pop();
+    final done = await guardClosedPeriod(context, () async {
+      if (_isEditing) {
+        await db.updateExpense(widget.expense!.key, expense);
+      } else {
+        await db.addExpense(expense);
+      }
+    });
+    if (done && mounted) Navigator.of(context).pop();
   }
 
   void _showError(String message) {
