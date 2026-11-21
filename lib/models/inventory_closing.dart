@@ -88,8 +88,7 @@ class InventoryClosing extends HiveObject {
 
   double get grossProfit => revenue - cogs;
 
-  // Misma fórmula que Reportes: ganancia bruta - mermas - gastos.
-  double get netProfit => grossProfit - shrinkageCost - expenses;
+  double get netProfit => grossProfit - shrinkageCost - expenses - commissions;
 
   Map<String, dynamic> toJson() {
     return {

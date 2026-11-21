@@ -990,9 +990,10 @@ class _SaleSummaryCard extends StatelessWidget {
       (s, i) => s + i.quantity * i.product.sellPrice,
     );
     final profit = cart.fold(
-      0.0,
-      (s, i) => s + i.quantity * (i.product.sellPrice - i.product.buyPrice),
-    );
+          0.0,
+          (s, i) => s + i.quantity * (i.product.sellPrice - i.product.buyPrice),
+        ) -
+        commission;
     final count = cart.fold(0, (s, i) => s + i.quantity);
     final net = total - commission;
     final isCredit = paymentMethod == PaymentMethod.credit;

@@ -46,7 +46,7 @@ class Sale extends HiveObject {
   bool get isOwnExpense => paymentMethod == 'gasto_propio';
   double get total => isOwnExpense ? 0 : unitSellPrice * quantity;
   double get profit =>
-      isOwnExpense ? 0 : (unitSellPrice - unitBuyPrice) * quantity;
+      isOwnExpense ? 0 : (unitSellPrice - unitBuyPrice) * quantity - commission;
   double get ownExpenseCost => isOwnExpense ? unitBuyPrice * quantity : 0;
   double get commission => commissionAmount ?? 0;
   double get netReceived => total - commission;

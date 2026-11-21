@@ -311,8 +311,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: stockController,
-                    decoration: const InputDecoration(
-                      labelText: 'Stock Inicial',
+                    decoration: InputDecoration(
+                      labelText: product == null ? 'Stock inicial' : 'Stock disponible ahora',
+                      helperText: product != null
+                          ? 'Para agregar mercancía usa Compras; para bajas, Mermas'
+                          : null,
+                      helperMaxLines: 2,
                     ),
                     keyboardType: TextInputType.number,
                   ),

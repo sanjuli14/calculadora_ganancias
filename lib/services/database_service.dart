@@ -1174,11 +1174,21 @@ class DatabaseService {
     return total;
   }
 
-  // Utilidad neta del período: ganancia bruta - mermas - gastos operativos.
+  // Comisiones pagadas en ventas del período (transferencias).
+  double getCommissionsBetween(DateTime start, DateTime end) {
+    double total = 0;
+    for (final sale in getSalesBetween(start, end)) {
+      total += sale.commission;
+    }
+    return total;
+  }
+
+  // Utilidad neta del período: ganancia bruta - mermas - gastos - comisiones.
   double getNetProfitBetween(DateTime start, DateTime end) {
     return getGrossProfitBetween(start, end) -
         getShrinkageCostBetween(start, end) -
-        getExpensesBetween(start, end);
+        getExpensesBetween(start, end) -
+        getCommissionsBetween(start, end);
   }
 
   // Capital inyectado histórico: lo declarado manualmente + todas las compras.

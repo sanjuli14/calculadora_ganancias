@@ -23,6 +23,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   (DateTime, DateTime) _range() {
     final now = DateTime.now();
     switch (_period) {
+      case 'closing':
+        final db = Provider.of<DatabaseService>(context, listen: false);
+        return (db.currentPeriodStart ?? DateTime(2000), now);
       case 'today':
         final start = DateTime(now.year, now.month, now.day);
         return (start, now);

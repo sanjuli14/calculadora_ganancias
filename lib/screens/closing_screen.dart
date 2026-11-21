@@ -274,6 +274,8 @@ class _PeriodDetails extends StatelessWidget {
           ),
           _Row('Mermas', '-${formatMoney(period.shrinkageCost)}'),
           _Row('Gastos', '-${formatMoney(period.expenses)}'),
+          if (period.commissions > 0)
+            _Row('Comisiones', '-${formatMoney(period.commissions)}'),
           _Row(
             'Utilidad neta',
             formatMoney(period.netProfit),
@@ -281,7 +283,6 @@ class _PeriodDetails extends StatelessWidget {
           ),
           const Divider(height: 24),
           _Row('Compras de mercancía', formatMoney(period.purchases)),
-          _Row('Comisiones', formatMoney(period.commissions)),
           const Divider(height: 24),
           _Row('Fiado entregado', formatMoney(period.creditSold)),
           _Row('Fiado cobrado', formatMoney(period.creditCollected)),
@@ -293,8 +294,7 @@ class _PeriodDetails extends StatelessWidget {
           _Row('Fiado pendiente', formatMoney(period.creditOutstanding)),
           const SizedBox(height: 4),
           Text(
-            'El fiado y las comisiones no están incluidos en la utilidad '
-            'neta, igual que en Reportes.',
+            'El fiado pendiente no está incluido en la utilidad neta.',
             style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
           ),
           const Divider(height: 24),
