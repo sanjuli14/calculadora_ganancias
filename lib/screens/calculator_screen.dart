@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import '../theme/app_theme.dart';
 
 enum CalcOp { none, add, sub, mul, div }
@@ -23,8 +24,36 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   double? _accumulator;
   CalcOp _pending = CalcOp.none;
   bool _justEvaluated = false;
-  final List<_CalcEntry> _history = [];
+  List<_CalcEntry> _history = [];
   bool _showHistory = false;
+
+  static const _historyKey = 'calculator_history';
+
+  @override
+  void initState() {
+    super.initState();
+    final raw = Hive.box('meta').get(_historyKey, defaultValue: <dynamic>[]);
+    if (raw is List) {
+      _history = raw
+          .whereType<Map>()
+          .map(
+            (e) => _CalcEntry(
+              e['expression'] as String? ?? '',
+              e['result'] as String? ?? '',
+            ),
+          )
+          .toList();
+    }
+  }
+
+  void _saveHistory() {
+    Hive.box('meta').put(
+      _historyKey,
+      _history
+          .map((e) => {'expression': e.expression, 'result': e.result})
+          .toList(),
+    );
+  }
 
   String get _upperLine {
     if (_justEvaluated) {
@@ -199,6 +228,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _pending = CalcOp.none;
       _justEvaluated = true;
     });
+    _saveHistory();
   }
 
   double _compute(double a, double b, CalcOp op) {
@@ -326,7 +356,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           _showHistory = false;
                         });
                       },
-                      onClear: () => setState(() => _history.clear()),
+                      onClear: () {
+                        setState(() => _history.clear());
+                        _saveHistory();
+                      },
                     )
                   : _Keypad(
                       upper: _upperLine,
@@ -608,7 +641,7 @@ class _HistoryView extends StatelessWidget {
               Icon(Icons.history, size: 56, color: AppColors.border),
               SizedBox(height: 12),
               Text(
-                'Sin operaciones en esta sesión',
+                'Sin operaciones guardadas',
                 style: TextStyle(color: AppColors.textSecondary),
               ),
             ],
@@ -623,7 +656,7 @@ class _HistoryView extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                'Historial de la sesión',
+                'Historial',
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w700,

@@ -142,7 +142,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         children: [
                           _SummaryStat(
                             label: 'Ventas',
-                            value: '${customSales.length}',
+                            value: '${customSales.where((s) => !s.isOwnExpense).length}',
                           ),
                           Container(
                             width: 1,
@@ -216,7 +216,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       const Divider(height: 24),
                       _DetailRow(
                         label: 'Número de ventas',
-                        value: '${customSales.length}',
+                        value: '${customSales.where((s) => !s.isOwnExpense).length}',
                       ),
                     ],
                   ),
